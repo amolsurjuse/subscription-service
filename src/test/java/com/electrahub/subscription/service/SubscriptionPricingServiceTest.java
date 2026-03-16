@@ -6,66 +6,68 @@ import com.electrahub.subscription.api.dto.SubscriptionUtilizationPreviewRespons
 import com.electrahub.subscription.api.dto.SubscriptionUtilizationResponse;
 import com.electrahub.subscription.domain.AllocationStatus;
 import com.electrahub.subscription.domain.AllocationType;
+import com.electrahub.subscription.domain.AuditAction;
 import com.electrahub.subscription.domain.DiscountType;
 import com.electrahub.subscription.domain.SubscriptionAllocation;
+import com.electrahub.subscription.domain.SubscriptionAuditLog;
 import com.electrahub.subscription.domain.SubscriptionPlan;
+import com.electrahub.subscription.domain.SubscriptionUtilization;
 import com.electrahub.subscription.repository.SubscriptionAllocationRepository;
+import com.electrahub.subscription.repository.SubscriptionAuditLogRepository;
 import com.electrahub.subscription.repository.SubscriptionUtilizationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.lang.reflect.Proxy;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
-@ExtendWith(MockitoExtension.class)
 class SubscriptionPricingServiceTest {
 
-    @Mock
-    private SubscriptionAllocationRepository subscriptionAllocationRepository;
-
-    @Mock
-    private SubscriptionUtilizationRepository subscriptionUtilizationRepository;
-
-    @Mock
-    private SubscriptionAuditService subscriptionAuditService;
-
+    private InMemoryAllocationStore allocationStore;
+    private InMemoryUtilizationStore utilizationStore;
+    private InMemoryAuditStore auditStore;
     private SubscriptionPricingService subscriptionPricingService;
 
     @BeforeEach
     void setUp() {
+        allocationStore = new InMemoryAllocationStore();
+        utilizationStore = new InMemoryUtilizationStore();
+        auditStore = new InMemoryAuditStore();
+
+        SubscriptionAllocationRepository allocationRepository = allocationStore.createRepository();
+        SubscriptionUtilizationRepository utilizationRepository = utilizationStore.createRepository();
+        SubscriptionAuditService auditService = new SubscriptionAuditService(auditStore.createRepository());
+
         SubscriptionAllocationService subscriptionAllocationService = new SubscriptionAllocationService(
-                subscriptionAllocationRepository,
+                allocationRepository,
                 null,
-                subscriptionAuditService
+                auditService
         ) {
             @Override
             public SubscriptionAllocation requireAllocation(UUID allocationId) {
-                return subscriptionAllocationRepository.findDetailedById(allocationId).orElseThrow();
+                return allocationStore.findById(allocationId).orElseThrow();
             }
         };
 
         subscriptionPricingService = new SubscriptionPricingService(
-                subscriptionAllocationRepository,
-                subscriptionUtilizationRepository,
+                allocationRepository,
+                utilizationRepository,
                 subscriptionAllocationService,
-                subscriptionAuditService
+                auditService
         );
     }
 
     @Test
     void previewAppliesTotalAndSessionDiscountsWithoutDiscountingTaxes() {
         SubscriptionAllocation allocation = buildAllocation(AllocationType.USER, 10, 0);
-        when(subscriptionAllocationRepository.findAllWithPlan()).thenReturn(List.of(allocation));
+        allocationStore.allocations = List.of(allocation);
 
         SubscriptionUtilizationPreviewResponse response = subscriptionPricingService.preview(
                 new PreviewSubscriptionUtilizationRequest(
@@ -94,8 +96,7 @@ class SubscriptionPricingServiceTest {
     @Test
     void recordConsumesQuotaAndPersistsUtilization() {
         SubscriptionAllocation allocation = buildAllocation(AllocationType.ORGANIZATION, 5, 1);
-        when(subscriptionAllocationRepository.findAllWithPlan()).thenReturn(List.of(allocation));
-        when(subscriptionUtilizationRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        allocationStore.allocations = List.of(allocation);
 
         SubscriptionUtilizationResponse response = subscriptionPricingService.record(
                 new RecordSubscriptionUtilizationRequest(
@@ -117,8 +118,9 @@ class SubscriptionPricingServiceTest {
         assertThat(response.totalDiscountAmount()).isEqualByComparingTo("2.2000");
         assertThat(response.remainingQuota()).isEqualTo(2);
         assertThat(allocation.getConsumedUnits()).isEqualTo(3);
-        verify(subscriptionUtilizationRepository).save(any());
-        verify(subscriptionAuditService).record(any(), any(), any(), any(), any(), any(), any(), any());
+        assertThat(utilizationStore.savedUtilizations).hasSize(1);
+        assertThat(auditStore.savedLogs).hasSize(1);
+        assertThat(auditStore.savedLogs.getFirst().getAction()).isEqualTo(AuditAction.UTILIZATION_RECORDED);
     }
 
     @Test
@@ -152,7 +154,7 @@ class SubscriptionPricingServiceTest {
                 "tester",
                 now
         );
-        when(subscriptionAllocationRepository.findAllWithPlan()).thenReturn(List.of(allocation));
+        allocationStore.allocations = List.of(allocation);
 
         SubscriptionUtilizationPreviewResponse response = subscriptionPricingService.preview(
                 new PreviewSubscriptionUtilizationRequest(
@@ -235,7 +237,7 @@ class SubscriptionPricingServiceTest {
                 "tester",
                 now
         );
-        when(subscriptionAllocationRepository.findAllWithPlan()).thenReturn(List.of(organizationAllocation, userAllocation));
+        allocationStore.allocations = List.of(organizationAllocation, userAllocation);
 
         SubscriptionUtilizationPreviewResponse response = subscriptionPricingService.preview(
                 new PreviewSubscriptionUtilizationRequest(
@@ -289,5 +291,71 @@ class SubscriptionPricingServiceTest {
         );
         allocation.incrementConsumedUnits(consumedUnits);
         return allocation;
+    }
+
+    private static final class InMemoryAllocationStore {
+        private List<SubscriptionAllocation> allocations = List.of();
+
+        private SubscriptionAllocationRepository createRepository() {
+            return (SubscriptionAllocationRepository) Proxy.newProxyInstance(
+                    SubscriptionAllocationRepository.class.getClassLoader(),
+                    new Class[]{SubscriptionAllocationRepository.class},
+                    (proxy, method, args) -> switch (method.getName()) {
+                        case "findAllWithPlan" -> allocations;
+                        case "findDetailedById" -> findById((UUID) args[0]);
+                        case "toString" -> "InMemoryAllocationRepository";
+                        default -> throw new UnsupportedOperationException(method.getName());
+                    }
+            );
+        }
+
+        private Optional<SubscriptionAllocation> findById(UUID id) {
+            return allocations.stream()
+                    .filter(allocation -> allocation.getId().equals(id))
+                    .findFirst();
+        }
+    }
+
+    private static final class InMemoryUtilizationStore {
+        private final List<SubscriptionUtilization> savedUtilizations = new ArrayList<>();
+
+        private SubscriptionUtilizationRepository createRepository() {
+            return (SubscriptionUtilizationRepository) Proxy.newProxyInstance(
+                    SubscriptionUtilizationRepository.class.getClassLoader(),
+                    new Class[]{SubscriptionUtilizationRepository.class},
+                    (proxy, method, args) -> switch (method.getName()) {
+                        case "save" -> {
+                            SubscriptionUtilization utilization = (SubscriptionUtilization) args[0];
+                            savedUtilizations.add(utilization);
+                            yield utilization;
+                        }
+                        case "findTop100ByUserIdOrderByUtilizedAtDesc" -> savedUtilizations.stream()
+                                .filter(utilization -> utilization.getUserId().equals(args[0]))
+                                .toList();
+                        case "toString" -> "InMemoryUtilizationRepository";
+                        default -> throw new UnsupportedOperationException(method.getName());
+                    }
+            );
+        }
+    }
+
+    private static final class InMemoryAuditStore {
+        private final List<SubscriptionAuditLog> savedLogs = new ArrayList<>();
+
+        private SubscriptionAuditLogRepository createRepository() {
+            return (SubscriptionAuditLogRepository) Proxy.newProxyInstance(
+                    SubscriptionAuditLogRepository.class.getClassLoader(),
+                    new Class[]{SubscriptionAuditLogRepository.class},
+                    (proxy, method, args) -> switch (method.getName()) {
+                        case "save" -> {
+                            SubscriptionAuditLog log = (SubscriptionAuditLog) args[0];
+                            savedLogs.add(log);
+                            yield log;
+                        }
+                        case "toString" -> "InMemoryAuditRepository";
+                        default -> throw new UnsupportedOperationException(method.getName());
+                    }
+            );
+        }
     }
 }
