@@ -1,0 +1,345 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0001-create-subscription-core
+      author: codex
+      changes:
+        - createTable:
+            schemaName: subscription_mgmt
+            tableName: subscription_plans
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: code
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: name
+                  type: VARCHAR(120)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: VARCHAR(1024)
+              - column:
+                  name: currency_code
+                  type: VARCHAR(3)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: total_fee_discount_type
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: total_fee_discount_value
+                  type: NUMERIC(19,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: session_fee_discount_type
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: session_fee_discount_value
+                  type: NUMERIC(19,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: default_quota_limit
+                  type: INTEGER
+              - column:
+                  name: active
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - createTable:
+            schemaName: subscription_mgmt
+            tableName: subscription_allocations
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: plan_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: allocation_type
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: UUID
+              - column:
+                  name: organization_id
+                  type: UUID
+              - column:
+                  name: group_id
+                  type: UUID
+              - column:
+                  name: quota_limit
+                  type: INTEGER
+              - column:
+                  name: consumed_units
+                  type: INTEGER
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: starts_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: ends_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: status
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_by
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: version
+                  type: BIGINT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+        - createTable:
+            schemaName: subscription_mgmt
+            tableName: subscription_utilizations
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: allocation_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: plan_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: organization_id
+                  type: UUID
+              - column:
+                  name: group_id
+                  type: UUID
+              - column:
+                  name: session_reference
+                  type: VARCHAR(120)
+              - column:
+                  name: charging_cost
+                  type: NUMERIC(19,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: session_fee
+                  type: NUMERIC(19,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: idle_fee
+                  type: NUMERIC(19,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: taxes
+                  type: NUMERIC(19,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: eligible_subtotal
+                  type: NUMERIC(19,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: total_fee_discount_amount
+                  type: NUMERIC(19,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: session_fee_discount_amount
+                  type: NUMERIC(19,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: total_discount_amount
+                  type: NUMERIC(19,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: final_charge_excluding_tax
+                  type: NUMERIC(19,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: final_charge_including_tax
+                  type: NUMERIC(19,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: units_consumed
+                  type: INTEGER
+                  constraints:
+                    nullable: false
+              - column:
+                  name: remaining_quota
+                  type: INTEGER
+              - column:
+                  name: note
+                  type: VARCHAR(512)
+              - column:
+                  name: utilized_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - createTable:
+            schemaName: subscription_mgmt
+            tableName: subscription_audit_logs
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: plan_id
+                  type: UUID
+              - column:
+                  name: allocation_id
+                  type: UUID
+              - column:
+                  name: user_id
+                  type: UUID
+              - column:
+                  name: organization_id
+                  type: UUID
+              - column:
+                  name: group_id
+                  type: UUID
+              - column:
+                  name: action
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: actor
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: detail
+                  type: VARCHAR(1024)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableSchemaName: subscription_mgmt
+            baseTableName: subscription_allocations
+            baseColumnNames: plan_id
+            constraintName: fk_subscription_allocations_plan
+            referencedTableSchemaName: subscription_mgmt
+            referencedTableName: subscription_plans
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableSchemaName: subscription_mgmt
+            baseTableName: subscription_utilizations
+            baseColumnNames: allocation_id
+            constraintName: fk_subscription_utilizations_allocation
+            referencedTableSchemaName: subscription_mgmt
+            referencedTableName: subscription_allocations
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            baseTableSchemaName: subscription_mgmt
+            baseTableName: subscription_utilizations
+            baseColumnNames: plan_id
+            constraintName: fk_subscription_utilizations_plan
+            referencedTableSchemaName: subscription_mgmt
+            referencedTableName: subscription_plans
+            referencedColumnNames: id
+        - createIndex:
+            schemaName: subscription_mgmt
+            tableName: subscription_allocations
+            indexName: idx_subscription_allocations_target
+            columns:
+              - column:
+                  name: allocation_type
+              - column:
+                  name: user_id
+              - column:
+                  name: organization_id
+              - column:
+                  name: group_id
+              - column:
+                  name: status
+        - createIndex:
+            schemaName: subscription_mgmt
+            tableName: subscription_utilizations
+            indexName: idx_subscription_utilizations_user_time
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: utilized_at
+        - createIndex:
+            schemaName: subscription_mgmt
+            tableName: subscription_audit_logs
+            indexName: idx_subscription_audit_logs_created_at
+            columns:
+              - column:
+                  name: created_at

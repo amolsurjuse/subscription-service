@@ -1,0 +1,27 @@
+server:
+  port: ${SERVER_PORT:8086}
+
+spring:
+  datasource:
+    url: ${LOCAL_ENV_SUBSCRIPTION_DATASOURCE_URL:jdbc:postgresql://127.0.0.1:5432/subscription_db}
+    username: ${LOCAL_ENV_SUBSCRIPTION_DATASOURCE_USERNAME:appuser}
+    password: ${LOCAL_ENV_SUBSCRIPTION_DATASOURCE_PASSWORD:Password@123}
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    default-schema: ${LOCAL_SPRING_LIQUIBASE_DEFAULT_SCHEMA:subscription_mgmt}
+    liquibase-schema: ${LOCAL_SPRING_LIQUIBASE_LIQUIBASE_SCHEMA:public}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        default_schema: ${LOCAL_SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA:subscription_mgmt}
+        jdbc:
+          time_zone: UTC
+
+logging:
+  level:
+    root: INFO
+    com.electrahub.subscription: DEBUG
