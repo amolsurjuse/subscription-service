@@ -2,18 +2,19 @@ package com.electrahub.subscription.service;
 
 import com.electrahub.subscription.api.dto.CreateSubscriptionPlanRequest;
 import com.electrahub.subscription.api.dto.SubscriptionPlanResponse;
+import com.electrahub.subscription.api.dto.SubscriptionPlanSearchResponse;
 import com.electrahub.subscription.api.error.ConflictException;
 import com.electrahub.subscription.api.error.NotFoundException;
 import com.electrahub.subscription.domain.AuditAction;
 import com.electrahub.subscription.domain.DiscountType;
 import com.electrahub.subscription.domain.SubscriptionPlan;
 import com.electrahub.subscription.repository.SubscriptionPlanRepository;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -71,10 +72,19 @@ public class SubscriptionPlanService {
     }
 
     @Transactional(readOnly = true)
-    public List<SubscriptionPlanResponse> list() {
-        return subscriptionPlanRepository.findAll().stream()
+    public SubscriptionPlanSearchResponse list(int limit, int offset) {
+        int safeLimit = Math.max(1, Math.min(limit, 200));
+        int safeOffset = Math.max(0, offset);
+        int page = safeOffset / safeLimit;
+
+        var pageResult = subscriptionPlanRepository.findAllByOrderByUpdatedAtDesc(PageRequest.of(page, safeLimit));
+        var items = pageResult.getContent().stream()
                 .map(this::toResponse)
                 .toList();
+        long total = pageResult.getTotalElements();
+        int totalPages = Math.max(pageResult.getTotalPages(), total > 0 ? 1 : 0);
+
+        return new SubscriptionPlanSearchResponse(items, total, safeLimit, safeOffset, page, totalPages, pageResult.hasNext(), pageResult.hasPrevious());
     }
 
     @Transactional(readOnly = true)
