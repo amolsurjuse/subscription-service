@@ -1,5 +1,7 @@
 package com.electrahub.subscription.service;
 
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import com.electrahub.subscription.api.dto.CreateSubscriptionAllocationRequest;
 import com.electrahub.subscription.api.dto.SubscriptionAllocationResponse;
 import com.electrahub.subscription.api.dto.UpdateAllocationStatusRequest;
@@ -20,6 +22,8 @@ import java.util.UUID;
 
 @Service
 public class SubscriptionAllocationService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SubscriptionAllocationService.class);
+
 
     private final SubscriptionAllocationRepository subscriptionAllocationRepository;
     private final SubscriptionPlanService subscriptionPlanService;
@@ -33,8 +37,18 @@ public class SubscriptionAllocationService {
         this.subscriptionAuditService = subscriptionAuditService;
     }
 
+    /**
+     * Creates create for `SubscriptionAllocationService`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     * @param request input consumed by create.
+     * @return result produced by create.
+     */
     @Transactional
     public SubscriptionAllocationResponse create(CreateSubscriptionAllocationRequest request) {
+        LOGGER.info("CODEx_ENTRY_LOG: Entering SubscriptionAllocationService#create");
+        LOGGER.debug("CODEx_ENTRY_LOG: Entering SubscriptionAllocationService#create with debug context");
         validateTarget(request);
         validateSchedule(request.startsAt(), request.endsAt());
 
@@ -88,6 +102,15 @@ public class SubscriptionAllocationService {
                 .toList();
     }
 
+    /**
+     * Updates update status for `SubscriptionAllocationService`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     * @param allocationId input consumed by updateStatus.
+     * @param request input consumed by updateStatus.
+     * @return result produced by updateStatus.
+     */
     @Transactional
     public SubscriptionAllocationResponse updateStatus(UUID allocationId, UpdateAllocationStatusRequest request) {
         SubscriptionAllocation allocation = requireAllocation(allocationId);
@@ -107,12 +130,28 @@ public class SubscriptionAllocationService {
         return toResponse(allocation);
     }
 
+    /**
+     * Executes require allocation for `SubscriptionAllocationService`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     * @param allocationId input consumed by requireAllocation.
+     * @return result produced by requireAllocation.
+     */
     @Transactional(readOnly = true)
     public SubscriptionAllocation requireAllocation(UUID allocationId) {
         return subscriptionAllocationRepository.findDetailedById(allocationId)
                 .orElseThrow(() -> new NotFoundException("Subscription allocation not found: " + allocationId));
     }
 
+    /**
+     * Executes to response for `SubscriptionAllocationService`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     * @param allocation input consumed by toResponse.
+     * @return result produced by toResponse.
+     */
     private SubscriptionAllocationResponse toResponse(SubscriptionAllocation allocation) {
         return new SubscriptionAllocationResponse(
                 allocation.getId(),
@@ -137,6 +176,13 @@ public class SubscriptionAllocationService {
         );
     }
 
+    /**
+     * Validates validate target for `SubscriptionAllocationService`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     * @param request input consumed by validateTarget.
+     */
     private void validateTarget(CreateSubscriptionAllocationRequest request) {
         switch (request.allocationType()) {
             case USER -> {
@@ -157,12 +203,28 @@ public class SubscriptionAllocationService {
         }
     }
 
+    /**
+     * Validates validate schedule for `SubscriptionAllocationService`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     * @param startsAt input consumed by validateSchedule.
+     * @param endsAt input consumed by validateSchedule.
+     */
     private void validateSchedule(OffsetDateTime startsAt, OffsetDateTime endsAt) {
         if (endsAt != null && endsAt.isBefore(startsAt)) {
             throw new IllegalArgumentException("Allocation end time must be after start time");
         }
     }
 
+    /**
+     * Creates build status detail for `SubscriptionAllocationService`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     * @param request input consumed by buildStatusDetail.
+     * @return result produced by buildStatusDetail.
+     */
     private String buildStatusDetail(UpdateAllocationStatusRequest request) {
         String reason = request.reason() == null ? "" : request.reason().trim();
         if (reason.isBlank()) {
@@ -171,6 +233,14 @@ public class SubscriptionAllocationService {
         return "Changed allocation status to " + request.status() + ": " + reason;
     }
 
+    /**
+     * Executes normalize actor for `SubscriptionAllocationService`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     * @param actor input consumed by normalizeActor.
+     * @return result produced by normalizeActor.
+     */
     private String normalizeActor(String actor) {
         String normalized = actor == null ? "" : actor.trim();
         return normalized.isBlank() ? "system" : normalized;

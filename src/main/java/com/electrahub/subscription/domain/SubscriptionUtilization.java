@@ -1,5 +1,7 @@
 package com.electrahub.subscription.domain;
 
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -15,6 +17,8 @@ import java.util.UUID;
 @Entity
 @Table(name = "subscription_utilizations")
 public class SubscriptionUtilization {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SubscriptionUtilization.class);
+
 
     @Id
     private UUID id;
@@ -81,7 +85,15 @@ public class SubscriptionUtilization {
     @Column(name = "utilized_at", nullable = false)
     private OffsetDateTime utilizedAt;
 
+    /**
+     * Executes subscription utilization for `SubscriptionUtilization`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.domain`.
+     */
     protected SubscriptionUtilization() {
+        LOGGER.info("CODEx_ENTRY_LOG: Entering SubscriptionUtilization#SubscriptionUtilization");
+        LOGGER.debug("CODEx_ENTRY_LOG: Entering SubscriptionUtilization#SubscriptionUtilization with debug context");
     }
 
     public SubscriptionUtilization(UUID id,
@@ -128,86 +140,233 @@ public class SubscriptionUtilization {
         this.utilizedAt = utilizedAt;
     }
 
+    /**
+     * Retrieves get id for `SubscriptionUtilization`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.domain`.
+     * @return result produced by getId.
+     */
     public UUID getId() {
         return id;
     }
 
+    /**
+     * Retrieves get allocation for `SubscriptionUtilization`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.domain`.
+     * @return result produced by getAllocation.
+     */
     public SubscriptionAllocation getAllocation() {
         return allocation;
     }
 
+    /**
+     * Retrieves get plan for `SubscriptionUtilization`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.domain`.
+     * @return result produced by getPlan.
+     */
     public SubscriptionPlan getPlan() {
         return plan;
     }
 
+    /**
+     * Retrieves get user id for `SubscriptionUtilization`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.domain`.
+     * @return result produced by getUserId.
+     */
     public UUID getUserId() {
         return userId;
     }
 
+    /**
+     * Retrieves get organization id for `SubscriptionUtilization`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.domain`.
+     * @return result produced by getOrganizationId.
+     */
     public UUID getOrganizationId() {
         return organizationId;
     }
 
+    /**
+     * Retrieves get group id for `SubscriptionUtilization`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.domain`.
+     * @return result produced by getGroupId.
+     */
     public UUID getGroupId() {
         return groupId;
     }
 
+    /**
+     * Retrieves get session reference for `SubscriptionUtilization`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.domain`.
+     * @return result produced by getSessionReference.
+     */
     public String getSessionReference() {
         return sessionReference;
     }
 
+    /**
+     * Retrieves get charging cost for `SubscriptionUtilization`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.domain`.
+     * @return result produced by getChargingCost.
+     */
     public BigDecimal getChargingCost() {
         return chargingCost;
     }
 
+    /**
+     * Retrieves get session fee for `SubscriptionUtilization`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.domain`.
+     * @return result produced by getSessionFee.
+     */
     public BigDecimal getSessionFee() {
         return sessionFee;
     }
 
+    /**
+     * Retrieves get idle fee for `SubscriptionUtilization`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.domain`.
+     * @return result produced by getIdleFee.
+     */
     public BigDecimal getIdleFee() {
         return idleFee;
     }
 
+    /**
+     * Retrieves get taxes for `SubscriptionUtilization`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.domain`.
+     * @return result produced by getTaxes.
+     */
     public BigDecimal getTaxes() {
         return taxes;
     }
 
+    /**
+     * Retrieves get eligible subtotal for `SubscriptionUtilization`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.domain`.
+     * @return result produced by getEligibleSubtotal.
+     */
     public BigDecimal getEligibleSubtotal() {
         return eligibleSubtotal;
     }
 
+    /**
+     * Retrieves get total fee discount amount for `SubscriptionUtilization`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.domain`.
+     * @return result produced by getTotalFeeDiscountAmount.
+     */
     public BigDecimal getTotalFeeDiscountAmount() {
         return totalFeeDiscountAmount;
     }
 
+    /**
+     * Retrieves get session fee discount amount for `SubscriptionUtilization`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.domain`.
+     * @return result produced by getSessionFeeDiscountAmount.
+     */
     public BigDecimal getSessionFeeDiscountAmount() {
         return sessionFeeDiscountAmount;
     }
 
+    /**
+     * Retrieves get total discount amount for `SubscriptionUtilization`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.domain`.
+     * @return result produced by getTotalDiscountAmount.
+     */
     public BigDecimal getTotalDiscountAmount() {
         return totalDiscountAmount;
     }
 
+    /**
+     * Retrieves get final charge excluding tax for `SubscriptionUtilization`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.domain`.
+     * @return result produced by getFinalChargeExcludingTax.
+     */
     public BigDecimal getFinalChargeExcludingTax() {
         return finalChargeExcludingTax;
     }
 
+    /**
+     * Retrieves get final charge including tax for `SubscriptionUtilization`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.domain`.
+     * @return result produced by getFinalChargeIncludingTax.
+     */
     public BigDecimal getFinalChargeIncludingTax() {
         return finalChargeIncludingTax;
     }
 
+    /**
+     * Retrieves get units consumed for `SubscriptionUtilization`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.domain`.
+     * @return result produced by getUnitsConsumed.
+     */
     public int getUnitsConsumed() {
         return unitsConsumed;
     }
 
+    /**
+     * Retrieves get remaining quota for `SubscriptionUtilization`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.domain`.
+     * @return result produced by getRemainingQuota.
+     */
     public Integer getRemainingQuota() {
         return remainingQuota;
     }
 
+    /**
+     * Retrieves get note for `SubscriptionUtilization`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.domain`.
+     * @return result produced by getNote.
+     */
     public String getNote() {
         return note;
     }
 
+    /**
+     * Retrieves get utilized at for `SubscriptionUtilization`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.domain`.
+     * @return result produced by getUtilizedAt.
+     */
     public OffsetDateTime getUtilizedAt() {
         return utilizedAt;
     }

@@ -1,5 +1,7 @@
 package com.electrahub.subscription.service;
 
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import com.electrahub.subscription.domain.AuditAction;
 import com.electrahub.subscription.domain.SubscriptionAuditLog;
 import com.electrahub.subscription.repository.SubscriptionAuditLogRepository;
@@ -10,10 +12,21 @@ import java.util.UUID;
 
 @Service
 public class SubscriptionAuditService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SubscriptionAuditService.class);
+
 
     private final SubscriptionAuditLogRepository subscriptionAuditLogRepository;
 
+    /**
+     * Executes subscription audit service for `SubscriptionAuditService`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     * @param subscriptionAuditLogRepository input consumed by SubscriptionAuditService.
+     */
     public SubscriptionAuditService(SubscriptionAuditLogRepository subscriptionAuditLogRepository) {
+        LOGGER.info("CODEx_ENTRY_LOG: Entering SubscriptionAuditService#SubscriptionAuditService");
+        LOGGER.debug("CODEx_ENTRY_LOG: Entering SubscriptionAuditService#SubscriptionAuditService with debug context");
         this.subscriptionAuditLogRepository = subscriptionAuditLogRepository;
     }
 
@@ -39,6 +52,14 @@ public class SubscriptionAuditService {
         ));
     }
 
+    /**
+     * Executes normalize actor for `SubscriptionAuditService`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     * @param actor input consumed by normalizeActor.
+     * @return result produced by normalizeActor.
+     */
     private String normalizeActor(String actor) {
         String normalized = actor == null ? "" : actor.trim();
         return normalized.isBlank() ? "system" : normalized;

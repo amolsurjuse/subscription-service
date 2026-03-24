@@ -1,5 +1,7 @@
 package com.electrahub.subscription.api;
 
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import com.electrahub.subscription.api.dto.CreateSubscriptionPlanRequest;
 import com.electrahub.subscription.api.dto.SubscriptionPlanResponse;
 import com.electrahub.subscription.api.dto.SubscriptionPlanSearchResponse;
@@ -20,13 +22,32 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/subscriptions/plans")
 public class SubscriptionPlanController {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SubscriptionPlanController.class);
+
 
     private final SubscriptionPlanService subscriptionPlanService;
 
+    /**
+     * Executes subscription plan controller for `SubscriptionPlanController`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.api`.
+     * @param subscriptionPlanService input consumed by SubscriptionPlanController.
+     */
     public SubscriptionPlanController(SubscriptionPlanService subscriptionPlanService) {
+        LOGGER.info("CODEx_ENTRY_LOG: Entering SubscriptionPlanController#SubscriptionPlanController");
+        LOGGER.debug("CODEx_ENTRY_LOG: Entering SubscriptionPlanController#SubscriptionPlanController with debug context");
         this.subscriptionPlanService = subscriptionPlanService;
     }
 
+    /**
+     * Creates create for `SubscriptionPlanController`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.api`.
+     * @param request input consumed by create.
+     * @return result produced by create.
+     */
     @PostMapping
     public SubscriptionPlanResponse create(@Valid @RequestBody CreateSubscriptionPlanRequest request) {
         return subscriptionPlanService.create(request);
@@ -40,6 +61,14 @@ public class SubscriptionPlanController {
         return subscriptionPlanService.list(limit, offset);
     }
 
+    /**
+     * Retrieves get for `SubscriptionPlanController`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.api`.
+     * @param planId input consumed by get.
+     * @return result produced by get.
+     */
     @GetMapping("/{planId}")
     public SubscriptionPlanResponse get(@PathVariable UUID planId) {
         return subscriptionPlanService.get(planId);

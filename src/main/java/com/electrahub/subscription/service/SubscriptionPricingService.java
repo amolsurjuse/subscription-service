@@ -1,5 +1,7 @@
 package com.electrahub.subscription.service;
 
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import com.electrahub.subscription.api.dto.PreviewSubscriptionUtilizationRequest;
 import com.electrahub.subscription.api.dto.RecordSubscriptionUtilizationRequest;
 import com.electrahub.subscription.api.dto.SubscriptionUtilizationPreviewResponse;
@@ -25,6 +27,8 @@ import java.util.UUID;
 
 @Service
 public class SubscriptionPricingService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SubscriptionPricingService.class);
+
 
     private static final BigDecimal ONE_HUNDRED = BigDecimal.valueOf(100);
 
@@ -43,8 +47,18 @@ public class SubscriptionPricingService {
         this.subscriptionAuditService = subscriptionAuditService;
     }
 
+    /**
+     * Executes preview for `SubscriptionPricingService`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     * @param request input consumed by preview.
+     * @return result produced by preview.
+     */
     @Transactional(readOnly = true)
     public SubscriptionUtilizationPreviewResponse preview(PreviewSubscriptionUtilizationRequest request) {
+        LOGGER.info("CODEx_ENTRY_LOG: Entering SubscriptionPricingService#preview");
+        LOGGER.debug("CODEx_ENTRY_LOG: Entering SubscriptionPricingService#preview with debug context");
         int units = normalizeUnits(request.unitsConsumed());
         SubscriptionAllocation allocation = resolveAllocation(
                 request.allocationId(),
@@ -86,6 +100,14 @@ public class SubscriptionPricingService {
         );
     }
 
+    /**
+     * Executes record for `SubscriptionPricingService`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     * @param request input consumed by record.
+     * @return result produced by record.
+     */
     @Transactional
     public SubscriptionUtilizationResponse record(RecordSubscriptionUtilizationRequest request) {
         int units = normalizeUnits(request.unitsConsumed());
@@ -147,6 +169,14 @@ public class SubscriptionPricingService {
         return toResponse(utilization);
     }
 
+    /**
+     * Retrieves list by user for `SubscriptionPricingService`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     * @param userId input consumed by listByUser.
+     * @return result produced by listByUser.
+     */
     @Transactional(readOnly = true)
     public List<SubscriptionUtilizationResponse> listByUser(UUID userId) {
         return subscriptionUtilizationRepository.findTop100ByUserIdOrderByUtilizedAtDesc(userId).stream()
@@ -154,6 +184,14 @@ public class SubscriptionPricingService {
                 .toList();
     }
 
+    /**
+     * Executes to response for `SubscriptionPricingService`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     * @param utilization input consumed by toResponse.
+     * @return result produced by toResponse.
+     */
     private SubscriptionUtilizationResponse toResponse(SubscriptionUtilization utilization) {
         return new SubscriptionUtilizationResponse(
                 utilization.getId(),
@@ -209,6 +247,16 @@ public class SubscriptionPricingService {
         return allocation;
     }
 
+    /**
+     * Executes resolve best allocation for `SubscriptionPricingService`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     * @param userId input consumed by resolveBestAllocation.
+     * @param organizationId input consumed by resolveBestAllocation.
+     * @param groupId input consumed by resolveBestAllocation.
+     * @return result produced by resolveBestAllocation.
+     */
     private SubscriptionAllocation resolveBestAllocation(UUID userId, UUID organizationId, UUID groupId) {
         OffsetDateTime now = OffsetDateTime.now();
         return subscriptionAllocationRepository.findAllWithPlan().stream()
@@ -235,6 +283,14 @@ public class SubscriptionPricingService {
         };
     }
 
+    /**
+     * Executes priority for `SubscriptionPricingService`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     * @param allocation input consumed by priority.
+     * @return result produced by priority.
+     */
     private int priority(SubscriptionAllocation allocation) {
         return switch (allocation.getAllocationType()) {
             case USER -> 0;
@@ -284,6 +340,16 @@ public class SubscriptionPricingService {
         );
     }
 
+    /**
+     * Executes discount amount for `SubscriptionPricingService`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     * @param discountType input consumed by discountAmount.
+     * @param discountValue input consumed by discountAmount.
+     * @param baseAmount input consumed by discountAmount.
+     * @return result produced by discountAmount.
+     */
     private BigDecimal discountAmount(DiscountType discountType, BigDecimal discountValue, BigDecimal baseAmount) {
         BigDecimal normalizedBaseAmount = money(baseAmount);
         BigDecimal normalizedDiscountValue = money(discountValue);
@@ -294,6 +360,15 @@ public class SubscriptionPricingService {
         };
     }
 
+    /**
+     * Executes remaining quota after use for `SubscriptionPricingService`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     * @param allocation input consumed by remainingQuotaAfterUse.
+     * @param units input consumed by remainingQuotaAfterUse.
+     * @return result produced by remainingQuotaAfterUse.
+     */
     private Integer remainingQuotaAfterUse(SubscriptionAllocation allocation, int units) {
         Integer remainingQuota = allocation.getRemainingQuota();
         if (remainingQuota == null) {
@@ -302,6 +377,14 @@ public class SubscriptionPricingService {
         return Math.max(0, remainingQuota - units);
     }
 
+    /**
+     * Executes money for `SubscriptionPricingService`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     * @param value input consumed by money.
+     * @return result produced by money.
+     */
     private BigDecimal money(BigDecimal value) {
         if (value == null) {
             return BigDecimal.ZERO.setScale(4, RoundingMode.HALF_UP);
@@ -312,15 +395,40 @@ public class SubscriptionPricingService {
         return value.setScale(4, RoundingMode.HALF_UP);
     }
 
+    /**
+     * Executes normalize units for `SubscriptionPricingService`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     * @param unitsConsumed input consumed by normalizeUnits.
+     * @return result produced by normalizeUnits.
+     */
     private int normalizeUnits(Integer unitsConsumed) {
         return unitsConsumed == null ? 1 : unitsConsumed;
     }
 
+    /**
+     * Executes normalize optional text for `SubscriptionPricingService`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     * @param value input consumed by normalizeOptionalText.
+     * @return result produced by normalizeOptionalText.
+     */
     private String normalizeOptionalText(String value) {
         String normalized = value == null ? "" : value.trim();
         return normalized.isBlank() ? null : normalized;
     }
 
+    /**
+     * Executes default label for `SubscriptionPricingService`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     * @param value input consumed by defaultLabel.
+     * @param fallback input consumed by defaultLabel.
+     * @return result produced by defaultLabel.
+     */
     private String defaultLabel(String value, String fallback) {
         String normalized = normalizeOptionalText(value);
         return normalized == null ? fallback : normalized;

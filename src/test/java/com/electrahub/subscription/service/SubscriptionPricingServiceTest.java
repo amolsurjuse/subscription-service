@@ -1,5 +1,7 @@
 package com.electrahub.subscription.service;
 
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import com.electrahub.subscription.api.dto.PreviewSubscriptionUtilizationRequest;
 import com.electrahub.subscription.api.dto.RecordSubscriptionUtilizationRequest;
 import com.electrahub.subscription.api.dto.SubscriptionUtilizationPreviewResponse;
@@ -29,14 +31,24 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class SubscriptionPricingServiceTest {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SubscriptionPricingServiceTest.class);
+
 
     private InMemoryAllocationStore allocationStore;
     private InMemoryUtilizationStore utilizationStore;
     private InMemoryAuditStore auditStore;
     private SubscriptionPricingService subscriptionPricingService;
 
+    /**
+     * Updates set up for `SubscriptionPricingServiceTest`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     */
     @BeforeEach
     void setUp() {
+        LOGGER.info("CODEx_ENTRY_LOG: Entering SubscriptionPricingServiceTest#setUp");
+        LOGGER.debug("CODEx_ENTRY_LOG: Entering SubscriptionPricingServiceTest#setUp with debug context");
         allocationStore = new InMemoryAllocationStore();
         utilizationStore = new InMemoryUtilizationStore();
         auditStore = new InMemoryAuditStore();
@@ -64,6 +76,12 @@ class SubscriptionPricingServiceTest {
         );
     }
 
+    /**
+     * Executes preview applies total and session discounts without discounting taxes for `SubscriptionPricingServiceTest`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     */
     @Test
     void previewAppliesTotalAndSessionDiscountsWithoutDiscountingTaxes() {
         SubscriptionAllocation allocation = buildAllocation(AllocationType.USER, 10, 0);
@@ -93,6 +111,12 @@ class SubscriptionPricingServiceTest {
         assertThat(response.remainingQuotaAfterUse()).isEqualTo(8);
     }
 
+    /**
+     * Executes record consumes quota and persists utilization for `SubscriptionPricingServiceTest`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     */
     @Test
     void recordConsumesQuotaAndPersistsUtilization() {
         SubscriptionAllocation allocation = buildAllocation(AllocationType.ORGANIZATION, 5, 1);
@@ -123,6 +147,12 @@ class SubscriptionPricingServiceTest {
         assertThat(auditStore.savedLogs.getFirst().getAction()).isEqualTo(AuditAction.UTILIZATION_RECORDED);
     }
 
+    /**
+     * Executes preview caps session discount to remaining eligible amount for `SubscriptionPricingServiceTest`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     */
     @Test
     void previewCapsSessionDiscountToRemainingEligibleAmount() {
         OffsetDateTime now = OffsetDateTime.now();
@@ -177,6 +207,12 @@ class SubscriptionPricingServiceTest {
         assertThat(response.finalChargeExcludingTax()).isEqualByComparingTo("0.0000");
     }
 
+    /**
+     * Executes preview prefers user allocation over broader organization allocation for `SubscriptionPricingServiceTest`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     */
     @Test
     void previewPrefersUserAllocationOverBroaderOrganizationAllocation() {
         OffsetDateTime now = OffsetDateTime.now();
@@ -258,6 +294,16 @@ class SubscriptionPricingServiceTest {
         assertThat(response.totalFeeDiscountAmount()).isEqualByComparingTo("5.0000");
     }
 
+    /**
+     * Creates build allocation for `SubscriptionPricingServiceTest`.
+     *
+     * <p>Detailed behavior: follows the current implementation path and
+     * enforces component-specific rules in `com.electrahub.subscription.service`.
+     * @param allocationType input consumed by buildAllocation.
+     * @param quotaLimit input consumed by buildAllocation.
+     * @param consumedUnits input consumed by buildAllocation.
+     * @return result produced by buildAllocation.
+     */
     private SubscriptionAllocation buildAllocation(AllocationType allocationType, int quotaLimit, int consumedUnits) {
         OffsetDateTime now = OffsetDateTime.now();
         SubscriptionPlan plan = new SubscriptionPlan(
