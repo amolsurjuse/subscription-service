@@ -3,7 +3,7 @@ server:
 
 spring:
   datasource:
-    url: ${LOCAL_ENV_SUBSCRIPTION_DATASOURCE_URL:jdbc:postgresql://127.0.0.1:5432/subscription_db}
+    url: ${LOCAL_ENV_SUBSCRIPTION_DATASOURCE_URL:jdbc:postgresql://127.0.0.1:58318/subscription_db}
     username: ${LOCAL_ENV_SUBSCRIPTION_DATASOURCE_USERNAME:appuser}
     password: ${LOCAL_ENV_SUBSCRIPTION_DATASOURCE_PASSWORD:Password@123}
   liquibase:
