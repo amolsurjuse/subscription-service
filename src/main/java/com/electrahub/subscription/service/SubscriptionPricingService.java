@@ -57,8 +57,8 @@ public class SubscriptionPricingService {
      */
     @Transactional(readOnly = true)
     public SubscriptionUtilizationPreviewResponse preview(PreviewSubscriptionUtilizationRequest request) {
-        LOGGER.info("CODEx_ENTRY_LOG: Entering SubscriptionPricingService#preview");
-        LOGGER.debug("CODEx_ENTRY_LOG: Entering SubscriptionPricingService#preview with debug context");
+        LOGGER.info(" Entering SubscriptionPricingService#preview");
+        LOGGER.debug(" Entering SubscriptionPricingService#preview with debug context");
         int units = normalizeUnits(request.unitsConsumed());
         SubscriptionAllocation allocation = resolveAllocation(
                 request.allocationId(),

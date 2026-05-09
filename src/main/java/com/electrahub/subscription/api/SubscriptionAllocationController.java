@@ -35,8 +35,8 @@ public class SubscriptionAllocationController {
      * @param subscriptionAllocationService input consumed by SubscriptionAllocationController.
      */
     public SubscriptionAllocationController(SubscriptionAllocationService subscriptionAllocationService) {
-        LOGGER.info("CODEx_ENTRY_LOG: Entering SubscriptionAllocationController#SubscriptionAllocationController");
-        LOGGER.debug("CODEx_ENTRY_LOG: Entering SubscriptionAllocationController#SubscriptionAllocationController with debug context");
+        LOGGER.info(" Entering SubscriptionAllocationController#SubscriptionAllocationController");
+        LOGGER.debug(" Entering SubscriptionAllocationController#SubscriptionAllocationController with debug context");
         this.subscriptionAllocationService = subscriptionAllocationService;
     }
 

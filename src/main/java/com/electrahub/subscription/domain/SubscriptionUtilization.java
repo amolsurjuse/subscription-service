@@ -92,8 +92,8 @@ public class SubscriptionUtilization {
      * enforces component-specific rules in `com.electrahub.subscription.domain`.
      */
     protected SubscriptionUtilization() {
-        LOGGER.info("CODEx_ENTRY_LOG: Entering SubscriptionUtilization#SubscriptionUtilization");
-        LOGGER.debug("CODEx_ENTRY_LOG: Entering SubscriptionUtilization#SubscriptionUtilization with debug context");
+        LOGGER.info(" Entering SubscriptionUtilization#SubscriptionUtilization");
+        LOGGER.debug(" Entering SubscriptionUtilization#SubscriptionUtilization with debug context");
     }
 
     public SubscriptionUtilization(UUID id,

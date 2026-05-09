@@ -15,7 +15,7 @@ public class BadRequestException extends RuntimeException {
      */
     public BadRequestException(String message) {
         super(message);
-        LOGGER.info("CODEx_ENTRY_LOG: Entering BadRequestException#BadRequestException");
-        LOGGER.debug("CODEx_ENTRY_LOG: Entering BadRequestException#BadRequestException with debug context");
+        LOGGER.info(" Entering BadRequestException#BadRequestException");
+        LOGGER.debug(" Entering BadRequestException#BadRequestException with debug context");
     }
 }

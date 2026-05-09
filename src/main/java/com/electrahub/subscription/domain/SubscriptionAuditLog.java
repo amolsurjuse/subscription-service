@@ -56,8 +56,8 @@ public class SubscriptionAuditLog {
      * enforces component-specific rules in `com.electrahub.subscription.domain`.
      */
     protected SubscriptionAuditLog() {
-        LOGGER.info("CODEx_ENTRY_LOG: Entering SubscriptionAuditLog#SubscriptionAuditLog");
-        LOGGER.debug("CODEx_ENTRY_LOG: Entering SubscriptionAuditLog#SubscriptionAuditLog with debug context");
+        LOGGER.info(" Entering SubscriptionAuditLog#SubscriptionAuditLog");
+        LOGGER.debug(" Entering SubscriptionAuditLog#SubscriptionAuditLog with debug context");
     }
 
     public SubscriptionAuditLog(UUID id,

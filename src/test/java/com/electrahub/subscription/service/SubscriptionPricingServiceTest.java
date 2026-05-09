@@ -47,8 +47,8 @@ class SubscriptionPricingServiceTest {
      */
     @BeforeEach
     void setUp() {
-        LOGGER.info("CODEx_ENTRY_LOG: Entering SubscriptionPricingServiceTest#setUp");
-        LOGGER.debug("CODEx_ENTRY_LOG: Entering SubscriptionPricingServiceTest#setUp with debug context");
+        LOGGER.info(" Entering SubscriptionPricingServiceTest#setUp");
+        LOGGER.debug(" Entering SubscriptionPricingServiceTest#setUp with debug context");
         allocationStore = new InMemoryAllocationStore();
         utilizationStore = new InMemoryUtilizationStore();
         auditStore = new InMemoryAuditStore();

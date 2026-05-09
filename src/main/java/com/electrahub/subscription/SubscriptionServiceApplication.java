@@ -18,8 +18,8 @@ public class SubscriptionServiceApplication {
      * @param args input consumed by main.
      */
     public static void main(String[] args) {
-        LOGGER.info("CODEx_ENTRY_LOG: Entering SubscriptionServiceApplication#main");
-        LOGGER.debug("CODEx_ENTRY_LOG: Entering SubscriptionServiceApplication#main with debug context");
+        LOGGER.info(" Entering SubscriptionServiceApplication#main");
+        LOGGER.debug(" Entering SubscriptionServiceApplication#main with debug context");
         SpringApplication.run(SubscriptionServiceApplication.class, args);
     }
 }

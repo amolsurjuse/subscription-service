@@ -28,8 +28,8 @@ public class SubscriptionAuditController {
      * @param subscriptionAuditQueryService input consumed by SubscriptionAuditController.
      */
     public SubscriptionAuditController(SubscriptionAuditQueryService subscriptionAuditQueryService) {
-        LOGGER.info("CODEx_ENTRY_LOG: Entering SubscriptionAuditController#SubscriptionAuditController");
-        LOGGER.debug("CODEx_ENTRY_LOG: Entering SubscriptionAuditController#SubscriptionAuditController with debug context");
+        LOGGER.info(" Entering SubscriptionAuditController#SubscriptionAuditController");
+        LOGGER.debug(" Entering SubscriptionAuditController#SubscriptionAuditController with debug context");
         this.subscriptionAuditQueryService = subscriptionAuditQueryService;
     }
 

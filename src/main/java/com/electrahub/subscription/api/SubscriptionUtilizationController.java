@@ -36,8 +36,8 @@ public class SubscriptionUtilizationController {
      * @param subscriptionPricingService input consumed by SubscriptionUtilizationController.
      */
     public SubscriptionUtilizationController(SubscriptionPricingService subscriptionPricingService) {
-        LOGGER.info("CODEx_ENTRY_LOG: Entering SubscriptionUtilizationController#SubscriptionUtilizationController");
-        LOGGER.debug("CODEx_ENTRY_LOG: Entering SubscriptionUtilizationController#SubscriptionUtilizationController with debug context");
+        LOGGER.info(" Entering SubscriptionUtilizationController#SubscriptionUtilizationController");
+        LOGGER.debug(" Entering SubscriptionUtilizationController#SubscriptionUtilizationController with debug context");
         this.subscriptionPricingService = subscriptionPricingService;
     }
 

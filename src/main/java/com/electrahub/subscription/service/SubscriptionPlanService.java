@@ -44,8 +44,8 @@ public class SubscriptionPlanService {
      */
     @Transactional
     public SubscriptionPlanResponse create(CreateSubscriptionPlanRequest request) {
-        LOGGER.info("CODEx_ENTRY_LOG: Entering SubscriptionPlanService#create");
-        LOGGER.debug("CODEx_ENTRY_LOG: Entering SubscriptionPlanService#create with debug context");
+        LOGGER.info(" Entering SubscriptionPlanService#create");
+        LOGGER.debug(" Entering SubscriptionPlanService#create with debug context");
         String normalizedCode = normalizeCode(request.code());
         if (subscriptionPlanRepository.existsByCodeIgnoreCase(normalizedCode)) {
             throw new ConflictException("Subscription plan already exists for code " + normalizedCode);

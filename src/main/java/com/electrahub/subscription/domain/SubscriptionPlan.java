@@ -68,8 +68,8 @@ public class SubscriptionPlan {
      * enforces component-specific rules in `com.electrahub.subscription.domain`.
      */
     protected SubscriptionPlan() {
-        LOGGER.info("CODEx_ENTRY_LOG: Entering SubscriptionPlan#SubscriptionPlan");
-        LOGGER.debug("CODEx_ENTRY_LOG: Entering SubscriptionPlan#SubscriptionPlan with debug context");
+        LOGGER.info(" Entering SubscriptionPlan#SubscriptionPlan");
+        LOGGER.debug(" Entering SubscriptionPlan#SubscriptionPlan with debug context");
     }
 
     public SubscriptionPlan(UUID id,

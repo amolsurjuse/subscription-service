@@ -47,8 +47,8 @@ public class SubscriptionAllocationService {
      */
     @Transactional
     public SubscriptionAllocationResponse create(CreateSubscriptionAllocationRequest request) {
-        LOGGER.info("CODEx_ENTRY_LOG: Entering SubscriptionAllocationService#create");
-        LOGGER.debug("CODEx_ENTRY_LOG: Entering SubscriptionAllocationService#create with debug context");
+        LOGGER.info(" Entering SubscriptionAllocationService#create");
+        LOGGER.debug(" Entering SubscriptionAllocationService#create with debug context");
         validateTarget(request);
         validateSchedule(request.startsAt(), request.endsAt());
 

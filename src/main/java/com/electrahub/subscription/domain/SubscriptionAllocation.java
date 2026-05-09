@@ -79,8 +79,8 @@ public class SubscriptionAllocation {
      * enforces component-specific rules in `com.electrahub.subscription.domain`.
      */
     protected SubscriptionAllocation() {
-        LOGGER.info("CODEx_ENTRY_LOG: Entering SubscriptionAllocation#SubscriptionAllocation");
-        LOGGER.debug("CODEx_ENTRY_LOG: Entering SubscriptionAllocation#SubscriptionAllocation with debug context");
+        LOGGER.info(" Entering SubscriptionAllocation#SubscriptionAllocation");
+        LOGGER.debug(" Entering SubscriptionAllocation#SubscriptionAllocation with debug context");
     }
 
     public SubscriptionAllocation(UUID id,

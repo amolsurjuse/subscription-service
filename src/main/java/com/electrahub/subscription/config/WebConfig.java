@@ -21,8 +21,8 @@ public class WebConfig implements WebMvcConfigurer {
      * @param corsProperties input consumed by WebConfig.
      */
     public WebConfig(CorsProperties corsProperties) {
-        LOGGER.info("CODEx_ENTRY_LOG: Entering WebConfig#WebConfig");
-        LOGGER.debug("CODEx_ENTRY_LOG: Entering WebConfig#WebConfig with debug context");
+        LOGGER.info(" Entering WebConfig#WebConfig");
+        LOGGER.debug(" Entering WebConfig#WebConfig with debug context");
         this.corsProperties = corsProperties;
     }
 
