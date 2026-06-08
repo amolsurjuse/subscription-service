@@ -76,6 +76,36 @@ public class SubscriptionUtilization {
     @Column(name = "units_consumed", nullable = false)
     private int unitsConsumed;
 
+    @Column(name = "energy_kwh", precision = 19, scale = 4)
+    private BigDecimal energyKwh;
+
+    @Column(name = "quota_unit", nullable = false, length = 32)
+    private String quotaUnit = QuotaUnit.SESSION.name();
+
+    @Column(name = "quota_consumed_value", precision = 19, scale = 4)
+    private BigDecimal quotaConsumedValue;
+
+    @Column(name = "covered_energy_kwh", precision = 19, scale = 4)
+    private BigDecimal coveredEnergyKwh;
+
+    @Column(name = "uncovered_energy_kwh", precision = 19, scale = 4)
+    private BigDecimal uncoveredEnergyKwh;
+
+    @Column(name = "benefit_amount", precision = 19, scale = 4)
+    private BigDecimal benefitAmount;
+
+    @Column(name = "regular_amount", precision = 19, scale = 4)
+    private BigDecimal regularAmount;
+
+    @Column(name = "gross_amount", precision = 19, scale = 4)
+    private BigDecimal grossAmount;
+
+    @Column(name = "net_amount", precision = 19, scale = 4)
+    private BigDecimal netAmount;
+
+    @Column(name = "quota_exhausted", nullable = false)
+    private boolean quotaExhausted;
+
     @Column(name = "remaining_quota")
     private Integer remainingQuota;
 
@@ -135,6 +165,16 @@ public class SubscriptionUtilization {
         this.finalChargeExcludingTax = finalChargeExcludingTax;
         this.finalChargeIncludingTax = finalChargeIncludingTax;
         this.unitsConsumed = unitsConsumed;
+        this.energyKwh = BigDecimal.valueOf(unitsConsumed);
+        this.quotaUnit = plan.getQuotaUnit().name();
+        this.quotaConsumedValue = BigDecimal.valueOf(unitsConsumed);
+        this.coveredEnergyKwh = BigDecimal.valueOf(unitsConsumed);
+        this.uncoveredEnergyKwh = BigDecimal.ZERO;
+        this.benefitAmount = totalDiscountAmount;
+        this.regularAmount = finalChargeIncludingTax;
+        this.grossAmount = eligibleSubtotal.add(taxes);
+        this.netAmount = finalChargeIncludingTax;
+        this.quotaExhausted = remainingQuota != null && remainingQuota <= 0;
         this.remainingQuota = remainingQuota;
         this.note = note;
         this.utilizedAt = utilizedAt;
@@ -336,6 +376,68 @@ public class SubscriptionUtilization {
      */
     public int getUnitsConsumed() {
         return unitsConsumed;
+    }
+
+    public BigDecimal getEnergyKwh() {
+        return energyKwh != null ? energyKwh : BigDecimal.valueOf(unitsConsumed);
+    }
+
+    public String getQuotaUnit() {
+        return quotaUnit == null ? QuotaUnit.SESSION.name() : quotaUnit;
+    }
+
+    public BigDecimal getQuotaConsumedValue() {
+        return quotaConsumedValue != null ? quotaConsumedValue : BigDecimal.valueOf(unitsConsumed);
+    }
+
+    public BigDecimal getCoveredEnergyKwh() {
+        return coveredEnergyKwh != null ? coveredEnergyKwh : BigDecimal.valueOf(unitsConsumed);
+    }
+
+    public BigDecimal getUncoveredEnergyKwh() {
+        return uncoveredEnergyKwh != null ? uncoveredEnergyKwh : BigDecimal.ZERO;
+    }
+
+    public BigDecimal getBenefitAmount() {
+        return benefitAmount != null ? benefitAmount : totalDiscountAmount;
+    }
+
+    public BigDecimal getRegularAmount() {
+        return regularAmount != null ? regularAmount : finalChargeIncludingTax;
+    }
+
+    public BigDecimal getGrossAmount() {
+        return grossAmount != null ? grossAmount : eligibleSubtotal.add(taxes);
+    }
+
+    public BigDecimal getNetAmount() {
+        return netAmount != null ? netAmount : finalChargeIncludingTax;
+    }
+
+    public boolean isQuotaExhausted() {
+        return quotaExhausted || (remainingQuota != null && remainingQuota <= 0);
+    }
+
+    public void applyAdminMetrics(BigDecimal energyKwh,
+                                  QuotaUnit quotaUnit,
+                                  BigDecimal quotaConsumedValue,
+                                  BigDecimal coveredEnergyKwh,
+                                  BigDecimal uncoveredEnergyKwh,
+                                  BigDecimal benefitAmount,
+                                  BigDecimal regularAmount,
+                                  BigDecimal grossAmount,
+                                  BigDecimal netAmount,
+                                  boolean quotaExhausted) {
+        this.energyKwh = energyKwh;
+        this.quotaUnit = quotaUnit == null ? QuotaUnit.SESSION.name() : quotaUnit.name();
+        this.quotaConsumedValue = quotaConsumedValue;
+        this.coveredEnergyKwh = coveredEnergyKwh;
+        this.uncoveredEnergyKwh = uncoveredEnergyKwh;
+        this.benefitAmount = benefitAmount;
+        this.regularAmount = regularAmount;
+        this.grossAmount = grossAmount;
+        this.netAmount = netAmount;
+        this.quotaExhausted = quotaExhausted;
     }
 
     /**

@@ -3,6 +3,7 @@ package com.electrahub.subscription.service;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import com.electrahub.subscription.api.dto.PreviewSubscriptionUtilizationRequest;
+import com.electrahub.subscription.api.dto.PagedResponse;
 import com.electrahub.subscription.api.dto.RecordSubscriptionUtilizationRequest;
 import com.electrahub.subscription.api.dto.SubscriptionUtilizationPreviewResponse;
 import com.electrahub.subscription.api.dto.SubscriptionUtilizationResponse;
@@ -15,6 +16,8 @@ import com.electrahub.subscription.domain.SubscriptionPlan;
 import com.electrahub.subscription.domain.SubscriptionUtilization;
 import com.electrahub.subscription.repository.SubscriptionAllocationRepository;
 import com.electrahub.subscription.repository.SubscriptionUtilizationRepository;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,6 +63,7 @@ public class SubscriptionPricingService {
         LOGGER.info(" Entering SubscriptionPricingService#preview");
         LOGGER.debug(" Entering SubscriptionPricingService#preview with debug context");
         int units = normalizeUnits(request.unitsConsumed());
+        BigDecimal energyKwh = normalizeEnergy(request.energyKwh(), units);
         SubscriptionAllocation allocation = resolveAllocation(
                 request.allocationId(),
                 request.userId(),
@@ -74,6 +78,7 @@ public class SubscriptionPricingService {
                 request.idleFee(),
                 request.taxes()
         );
+        CoverageResult coverage = calculateCoverage(allocation, pricingResult, energyKwh, request.quotaConsumedValue());
 
         return new SubscriptionUtilizationPreviewResponse(
                 allocation.getId(),
@@ -96,7 +101,19 @@ public class SubscriptionPricingService {
                 pricingResult.finalChargeExcludingTax(),
                 pricingResult.finalChargeIncludingTax(),
                 units,
-                remainingQuotaAfterUse(allocation, units)
+                energyKwh,
+                allocation.getPlan().getQuotaUnit(),
+                coverage.quotaConsumedValue(),
+                coverage.coveredEnergyKwh(),
+                coverage.uncoveredEnergyKwh(),
+                coverage.benefitAmount(),
+                coverage.regularAmount(),
+                coverage.grossAmount(),
+                coverage.netAmount(),
+                coverage.quotaExhausted(),
+                allocation.getPlan().getPricingModel(),
+                allocation.getPlan().getBenefitDisplayMode(),
+                remainingQuotaAfterUse(allocation, coverage.quotaConsumedValue())
         );
     }
 
@@ -111,6 +128,7 @@ public class SubscriptionPricingService {
     @Transactional
     public SubscriptionUtilizationResponse record(RecordSubscriptionUtilizationRequest request) {
         int units = normalizeUnits(request.unitsConsumed());
+        BigDecimal energyKwh = normalizeEnergy(request.energyKwh(), units);
         SubscriptionAllocation allocation = resolveAllocation(
                 request.allocationId(),
                 request.userId(),
@@ -125,8 +143,9 @@ public class SubscriptionPricingService {
                 request.idleFee(),
                 request.taxes()
         );
+        CoverageResult coverage = calculateCoverage(allocation, pricingResult, energyKwh, request.quotaConsumedValue());
 
-        allocation.incrementConsumedUnits(units);
+        allocation.incrementConsumedValue(coverage.quotaConsumedValue());
         Integer remainingQuota = allocation.getRemainingQuota();
 
         SubscriptionUtilization utilization = new SubscriptionUtilization(
@@ -142,15 +161,27 @@ public class SubscriptionPricingService {
                 pricingResult.idleFee(),
                 pricingResult.taxes(),
                 pricingResult.eligibleSubtotal(),
-                pricingResult.totalFeeDiscountAmount(),
-                pricingResult.sessionFeeDiscountAmount(),
-                pricingResult.totalDiscountAmount(),
-                pricingResult.finalChargeExcludingTax(),
-                pricingResult.finalChargeIncludingTax(),
+                coverage.benefitAmount(),
+                BigDecimal.ZERO.setScale(4, RoundingMode.HALF_UP),
+                coverage.benefitAmount(),
+                coverage.netAmount().subtract(pricingResult.taxes()).max(BigDecimal.ZERO),
+                coverage.netAmount(),
                 units,
                 remainingQuota,
                 normalizeOptionalText(request.note()),
                 OffsetDateTime.now()
+        );
+        utilization.applyAdminMetrics(
+                energyKwh,
+                allocation.getPlan().getQuotaUnit(),
+                coverage.quotaConsumedValue(),
+                coverage.coveredEnergyKwh(),
+                coverage.uncoveredEnergyKwh(),
+                coverage.benefitAmount(),
+                coverage.regularAmount(),
+                coverage.grossAmount(),
+                coverage.netAmount(),
+                coverage.quotaExhausted()
         );
 
         subscriptionUtilizationRepository.save(utilization);
@@ -184,6 +215,55 @@ public class SubscriptionPricingService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public PagedResponse<SubscriptionUtilizationResponse> listPaged(UUID userId,
+                                                                    UUID allocationId,
+                                                                    UUID planId,
+                                                                    UUID enterpriseId,
+                                                                    String sessionReference,
+                                                                    OffsetDateTime from,
+                                                                    OffsetDateTime to,
+                                                                    Boolean quotaExhausted,
+                                                                    int limit,
+                                                                    int offset) {
+        int safeLimit = Math.max(1, Math.min(limit, 200));
+        int safeOffset = Math.max(0, offset);
+        int page = safeOffset / safeLimit;
+
+        var pageable = PageRequest.of(page, safeLimit, Sort.by(Sort.Direction.DESC, "utilizedAt"));
+        String normalizedSessionReference = normalizeOptionalText(sessionReference);
+        boolean sessionReferenceEmpty = normalizedSessionReference == null;
+        String sessionReferencePattern = sessionReferenceEmpty ? "" : "%" + normalizedSessionReference.toLowerCase() + "%";
+        var pageResult = subscriptionUtilizationRepository.searchPaged(
+                userId,
+                allocationId,
+                planId,
+                enterpriseId,
+                sessionReferenceEmpty,
+                sessionReferencePattern,
+                from != null,
+                from,
+                to != null,
+                to,
+                quotaExhausted,
+                pageable
+        );
+        var items = pageResult.getContent().stream().map(this::toResponse).toList();
+        long total = pageResult.getTotalElements();
+        int totalPages = Math.max(pageResult.getTotalPages(), total > 0 ? 1 : 0);
+
+        return new PagedResponse<>(
+                items,
+                total,
+                safeLimit,
+                safeOffset,
+                page,
+                totalPages,
+                pageResult.hasNext(),
+                pageResult.hasPrevious()
+        );
+    }
+
     /**
      * Executes to response for `SubscriptionPricingService`.
      *
@@ -215,6 +295,18 @@ public class SubscriptionPricingService {
                 utilization.getFinalChargeExcludingTax(),
                 utilization.getFinalChargeIncludingTax(),
                 utilization.getUnitsConsumed(),
+                utilization.getEnergyKwh(),
+                utilization.getPlan().getQuotaUnit(),
+                utilization.getQuotaConsumedValue(),
+                utilization.getCoveredEnergyKwh(),
+                utilization.getUncoveredEnergyKwh(),
+                utilization.getBenefitAmount(),
+                utilization.getRegularAmount(),
+                utilization.getGrossAmount(),
+                utilization.getNetAmount(),
+                utilization.isQuotaExhausted(),
+                utilization.getPlan().getPricingModel(),
+                utilization.getPlan().getBenefitDisplayMode(),
                 utilization.getRemainingQuota(),
                 utilization.getNote(),
                 utilization.getUtilizedAt()
@@ -240,8 +332,8 @@ public class SubscriptionPricingService {
         }
 
         Integer remainingQuota = allocation.getRemainingQuota();
-        if (remainingQuota != null && remainingQuota < units) {
-            throw new IllegalStateException("Subscription quota exceeded");
+        if (remainingQuota != null && remainingQuota <= 0) {
+            throw new IllegalStateException("Subscription quota exhausted");
         }
 
         return allocation;
@@ -369,12 +461,12 @@ public class SubscriptionPricingService {
      * @param units input consumed by remainingQuotaAfterUse.
      * @return result produced by remainingQuotaAfterUse.
      */
-    private Integer remainingQuotaAfterUse(SubscriptionAllocation allocation, int units) {
-        Integer remainingQuota = allocation.getRemainingQuota();
+    private Integer remainingQuotaAfterUse(SubscriptionAllocation allocation, BigDecimal quotaConsumedValue) {
+        BigDecimal remainingQuota = allocation.getRemainingQuotaValue();
         if (remainingQuota == null) {
             return null;
         }
-        return Math.max(0, remainingQuota - units);
+        return remainingQuota.subtract(quotaConsumedValue == null ? BigDecimal.ZERO : quotaConsumedValue).max(BigDecimal.ZERO).intValue();
     }
 
     /**
@@ -405,6 +497,41 @@ public class SubscriptionPricingService {
      */
     private int normalizeUnits(Integer unitsConsumed) {
         return unitsConsumed == null ? 1 : unitsConsumed;
+    }
+
+    private BigDecimal normalizeEnergy(BigDecimal energyKwh, int fallbackUnits) {
+        BigDecimal fallback = BigDecimal.valueOf(Math.max(fallbackUnits, 0));
+        BigDecimal value = energyKwh == null ? fallback : energyKwh;
+        return value.setScale(4, RoundingMode.HALF_UP).max(BigDecimal.ZERO);
+    }
+
+    private CoverageResult calculateCoverage(SubscriptionAllocation allocation,
+                                             PricingResult pricingResult,
+                                             BigDecimal energyKwh,
+                                             BigDecimal requestedQuotaConsumedValue) {
+        BigDecimal remaining = allocation.getRemainingQuotaValue();
+        BigDecimal requested = requestedQuotaConsumedValue == null ? energyKwh : requestedQuotaConsumedValue;
+        BigDecimal quotaConsumed = remaining == null ? requested : requested.min(remaining).max(BigDecimal.ZERO);
+        BigDecimal coveredEnergy = energyKwh.compareTo(BigDecimal.ZERO) == 0 ? BigDecimal.ZERO : quotaConsumed.min(energyKwh);
+        BigDecimal uncoveredEnergy = energyKwh.subtract(coveredEnergy).max(BigDecimal.ZERO);
+        BigDecimal coverageRatio = energyKwh.compareTo(BigDecimal.ZERO) == 0
+                ? BigDecimal.ZERO
+                : coveredEnergy.divide(energyKwh, 8, RoundingMode.HALF_UP);
+        BigDecimal benefitAmount = money(pricingResult.totalDiscountAmount().multiply(coverageRatio));
+        BigDecimal grossAmount = money(pricingResult.eligibleSubtotal().add(pricingResult.taxes()));
+        BigDecimal netAmount = money(grossAmount.subtract(benefitAmount));
+        BigDecimal regularAmount = money(netAmount);
+        boolean quotaExhausted = remaining != null && remaining.subtract(quotaConsumed).compareTo(BigDecimal.ZERO) <= 0;
+        return new CoverageResult(
+                quotaConsumed,
+                coveredEnergy,
+                uncoveredEnergy,
+                benefitAmount,
+                regularAmount,
+                grossAmount,
+                netAmount,
+                quotaExhausted
+        );
     }
 
     /**
@@ -445,6 +572,18 @@ public class SubscriptionPricingService {
             BigDecimal totalDiscountAmount,
             BigDecimal finalChargeExcludingTax,
             BigDecimal finalChargeIncludingTax
+    ) {
+    }
+
+    private record CoverageResult(
+            BigDecimal quotaConsumedValue,
+            BigDecimal coveredEnergyKwh,
+            BigDecimal uncoveredEnergyKwh,
+            BigDecimal benefitAmount,
+            BigDecimal regularAmount,
+            BigDecimal grossAmount,
+            BigDecimal netAmount,
+            boolean quotaExhausted
     ) {
     }
 }

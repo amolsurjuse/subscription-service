@@ -1,8 +1,13 @@
 package com.electrahub.subscription.api.dto;
 
 import com.electrahub.subscription.domain.AllocationStatus;
+import com.electrahub.subscription.domain.AllocationSource;
 import com.electrahub.subscription.domain.AllocationType;
+import com.electrahub.subscription.domain.BenefitDisplayMode;
+import com.electrahub.subscription.domain.PricingModel;
+import com.electrahub.subscription.domain.QuotaUnit;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -17,13 +22,27 @@ public record SubscriptionAllocationResponse(
         UUID organizationId,
         UUID groupId,
         Integer quotaLimit,
+        BigDecimal quotaLimitValue,
         Integer effectiveQuotaLimit,
+        BigDecimal effectiveQuotaLimitValue,
         int consumedUnits,
+        BigDecimal consumedValue,
         Integer remainingQuota,
+        BigDecimal remainingValue,
+        QuotaUnit quotaUnit,
+        PricingModel pricingModel,
+        BenefitDisplayMode benefitDisplayMode,
         OffsetDateTime startsAt,
         OffsetDateTime endsAt,
         AllocationStatus status,
         String createdBy,
+        AllocationSource source,
+        String sourceLabel,
+        String grantReason,
+        String externalReference,
+        String vin,
+        UUID enterpriseId,
+        OffsetDateTime lastUsedAt,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {

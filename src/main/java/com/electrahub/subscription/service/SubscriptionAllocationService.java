@@ -3,18 +3,25 @@ package com.electrahub.subscription.service;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import com.electrahub.subscription.api.dto.CreateSubscriptionAllocationRequest;
+import com.electrahub.subscription.api.dto.CreateSubscriptionGrantRequest;
+import com.electrahub.subscription.api.dto.PagedResponse;
 import com.electrahub.subscription.api.dto.SubscriptionAllocationResponse;
 import com.electrahub.subscription.api.dto.UpdateAllocationStatusRequest;
 import com.electrahub.subscription.api.error.NotFoundException;
 import com.electrahub.subscription.domain.AllocationStatus;
+import com.electrahub.subscription.domain.AllocationSource;
 import com.electrahub.subscription.domain.AllocationType;
 import com.electrahub.subscription.domain.AuditAction;
+import com.electrahub.subscription.domain.PlanCategory;
 import com.electrahub.subscription.domain.SubscriptionAllocation;
 import com.electrahub.subscription.domain.SubscriptionPlan;
 import com.electrahub.subscription.repository.SubscriptionAllocationRepository;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -55,6 +62,9 @@ public class SubscriptionAllocationService {
         SubscriptionPlan plan = subscriptionPlanService.requirePlan(request.planId());
         AllocationStatus status = request.status() == null ? AllocationStatus.ACTIVE : request.status();
         OffsetDateTime now = OffsetDateTime.now();
+        BigDecimal quotaLimitValue = request.quotaLimitValue() != null
+                ? request.quotaLimitValue()
+                : request.quotaLimit() == null ? null : BigDecimal.valueOf(request.quotaLimit());
 
         SubscriptionAllocation allocation = new SubscriptionAllocation(
                 UUID.randomUUID(),
@@ -64,10 +74,17 @@ public class SubscriptionAllocationService {
                 request.organizationId(),
                 request.groupId(),
                 request.quotaLimit(),
+                quotaLimitValue,
                 request.startsAt(),
                 request.endsAt(),
                 status,
                 normalizeActor(request.createdBy()),
+                request.source(),
+                normalizeOptionalText(request.sourceLabel()),
+                normalizeOptionalText(request.grantReason()),
+                normalizeOptionalText(request.externalReference()),
+                normalizeOptionalText(request.vin()),
+                request.enterpriseId(),
                 now
         );
         subscriptionAllocationRepository.save(allocation);
@@ -78,9 +95,69 @@ public class SubscriptionAllocationService {
                 allocation.getUserId(),
                 allocation.getOrganizationId(),
                 allocation.getGroupId(),
-                AuditAction.ALLOCATION_CREATED,
+                allocation.getSource() == AllocationSource.ADMIN_GRANTED || allocation.getSource() == AllocationSource.OEM_GRANTED
+                        ? AuditAction.ALLOCATION_GRANTED
+                        : AuditAction.ALLOCATION_CREATED,
                 allocation.getCreatedBy(),
-                "Created subscription allocation " + allocation.getId()
+                buildCreateDetail(allocation)
+        );
+
+        return toResponse(allocation);
+    }
+
+    @Transactional
+    public SubscriptionAllocationResponse grantToUser(CreateSubscriptionGrantRequest request) {
+        SubscriptionPlan plan = subscriptionPlanService.requirePlan(request.planId());
+        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime startsAt = request.startsAt() == null ? now : request.startsAt();
+        OffsetDateTime endsAt = request.endsAt();
+        if (endsAt == null && plan.getValidityDays() != null) {
+            endsAt = startsAt.plusDays(plan.getValidityDays());
+        }
+        validateSchedule(startsAt, endsAt);
+
+        AllocationSource source = request.source() != null
+                ? request.source()
+                : plan.getPlanCategory() == PlanCategory.OEM_PROMOTION ? AllocationSource.OEM_GRANTED : AllocationSource.ADMIN_GRANTED;
+        String sourceLabel = source == AllocationSource.OEM_GRANTED ? "OEM grant" : "Admin grant";
+        if (request.dealerCode() != null && !request.dealerCode().isBlank()) {
+            sourceLabel = sourceLabel + " - " + request.dealerCode().trim();
+        }
+
+        SubscriptionAllocation allocation = new SubscriptionAllocation(
+                UUID.randomUUID(),
+                plan,
+                AllocationType.USER,
+                request.userId(),
+                null,
+                null,
+                request.quotaValue().intValue(),
+                request.quotaValue(),
+                startsAt,
+                endsAt,
+                AllocationStatus.ACTIVE,
+                normalizeActor(request.createdBy()),
+                source,
+                sourceLabel,
+                normalizeOptionalText(request.grantReason()),
+                normalizeOptionalText(request.externalReference()),
+                normalizeOptionalText(request.vin()),
+                request.enterpriseId() != null ? request.enterpriseId() : plan.getEnterpriseId(),
+                now
+        );
+        subscriptionAllocationRepository.save(allocation);
+
+        subscriptionAuditService.record(
+                plan.getId(),
+                allocation.getId(),
+                allocation.getUserId(),
+                null,
+                null,
+                AuditAction.ALLOCATION_GRANTED,
+                allocation.getCreatedBy(),
+                "Granted " + request.quotaValue().stripTrailingZeros().toPlainString()
+                        + " " + (request.quotaUnit() == null ? plan.getQuotaUnit() : request.quotaUnit())
+                        + " using plan " + plan.getCode()
         );
 
         return toResponse(allocation);
@@ -100,6 +177,56 @@ public class SubscriptionAllocationService {
                 .sorted(Comparator.comparing(SubscriptionAllocation::getCreatedAt).reversed())
                 .map(this::toResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResponse<SubscriptionAllocationResponse> listPaged(UUID userId,
+                                                                   UUID organizationId,
+                                                                   UUID groupId,
+                                                                   UUID planId,
+                                                                   AllocationType allocationType,
+                                                                   AllocationStatus status,
+                                                                   AllocationSource source,
+                                                                   UUID enterpriseId,
+                                                                   Boolean exhausted,
+                                                                   Boolean activeOnly,
+                                                                   int limit,
+                                                                   int offset) {
+        int safeLimit = Math.max(1, Math.min(limit, 200));
+        int safeOffset = Math.max(0, offset);
+        int page = safeOffset / safeLimit;
+        boolean activeFilter = Boolean.TRUE.equals(activeOnly);
+
+        var pageable = PageRequest.of(page, safeLimit, Sort.by(Sort.Direction.DESC, "createdAt"));
+        var pageResult = subscriptionAllocationRepository.searchPaged(
+                userId,
+                organizationId,
+                groupId,
+                planId,
+                allocationType,
+                status,
+                source,
+                enterpriseId,
+                exhausted,
+                activeFilter,
+                OffsetDateTime.now(),
+                pageable
+        );
+
+        var items = pageResult.getContent().stream().map(this::toResponse).toList();
+        long total = pageResult.getTotalElements();
+        int totalPages = Math.max(pageResult.getTotalPages(), total > 0 ? 1 : 0);
+
+        return new PagedResponse<>(
+                items,
+                total,
+                safeLimit,
+                safeOffset,
+                page,
+                totalPages,
+                pageResult.hasNext(),
+                pageResult.hasPrevious()
+        );
     }
 
     /**
@@ -164,13 +291,27 @@ public class SubscriptionAllocationService {
                 allocation.getOrganizationId(),
                 allocation.getGroupId(),
                 allocation.getQuotaLimit(),
+                allocation.getQuotaLimitValue(),
                 allocation.getEffectiveQuotaLimit(),
+                allocation.getEffectiveQuotaLimitValue(),
                 allocation.getConsumedUnits(),
+                allocation.getConsumedValue(),
                 allocation.getRemainingQuota(),
+                allocation.getRemainingQuotaValue(),
+                allocation.getPlan().getQuotaUnit(),
+                allocation.getPlan().getPricingModel(),
+                allocation.getPlan().getBenefitDisplayMode(),
                 allocation.getStartsAt(),
                 allocation.getEndsAt(),
                 allocation.getStatus(),
                 allocation.getCreatedBy(),
+                allocation.getSource(),
+                allocation.getSourceLabel(),
+                allocation.getGrantReason(),
+                allocation.getExternalReference(),
+                allocation.getVin(),
+                allocation.getEnterpriseId(),
+                allocation.getLastUsedAt(),
                 allocation.getCreatedAt(),
                 allocation.getUpdatedAt()
         );
@@ -233,6 +374,13 @@ public class SubscriptionAllocationService {
         return "Changed allocation status to " + request.status() + ": " + reason;
     }
 
+    private String buildCreateDetail(SubscriptionAllocation allocation) {
+        if (allocation.getSource() == AllocationSource.ADMIN_GRANTED || allocation.getSource() == AllocationSource.OEM_GRANTED) {
+            return "Granted subscription allocation " + allocation.getId() + " for plan " + allocation.getPlan().getCode();
+        }
+        return "Created subscription allocation " + allocation.getId();
+    }
+
     /**
      * Executes normalize actor for `SubscriptionAllocationService`.
      *
@@ -244,5 +392,10 @@ public class SubscriptionAllocationService {
     private String normalizeActor(String actor) {
         String normalized = actor == null ? "" : actor.trim();
         return normalized.isBlank() ? "system" : normalized;
+    }
+
+    private String normalizeOptionalText(String value) {
+        String normalized = value == null ? "" : value.trim();
+        return normalized.isBlank() ? null : normalized;
     }
 }

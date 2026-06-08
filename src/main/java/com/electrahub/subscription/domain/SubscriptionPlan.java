@@ -52,6 +52,50 @@ public class SubscriptionPlan {
     @Column(name = "default_quota_limit")
     private Integer defaultQuotaLimit;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 32)
+    private PlanVisibility visibility = PlanVisibility.ADMIN_ONLY;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "plan_category", nullable = false, length = 32)
+    private PlanCategory planCategory = PlanCategory.FLEET;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "pricing_model", nullable = false, length = 32)
+    private PricingModel pricingModel = PricingModel.FREE;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "benefit_display_mode", nullable = false, length = 32)
+    private BenefitDisplayMode benefitDisplayMode = BenefitDisplayMode.DISCOUNT;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "quota_unit", nullable = false, length = 32)
+    private QuotaUnit quotaUnit = QuotaUnit.SESSION;
+
+    @Column(name = "default_quota_value", precision = 19, scale = 4)
+    private BigDecimal defaultQuotaValue;
+
+    @Column(name = "subscription_price_amount", precision = 19, scale = 4)
+    private BigDecimal subscriptionPriceAmount;
+
+    @Column(name = "validity_days")
+    private Integer validityDays;
+
+    @Column(name = "enterprise_id")
+    private UUID enterpriseId;
+
+    @Column(name = "country_code", length = 2)
+    private String countryCode;
+
+    @Column(name = "public_sort_order")
+    private Integer publicSortOrder;
+
+    @Column(name = "allow_stacking", nullable = false)
+    private boolean allowStacking;
+
+    @Column(name = "created_by", length = 100)
+    private String createdBy;
+
     @Column(nullable = false)
     private boolean active;
 
@@ -84,6 +128,60 @@ public class SubscriptionPlan {
                             Integer defaultQuotaLimit,
                             boolean active,
                             OffsetDateTime now) {
+        this(
+                id,
+                code,
+                name,
+                description,
+                currencyCode,
+                totalFeeDiscountType,
+                totalFeeDiscountValue,
+                sessionFeeDiscountType,
+                sessionFeeDiscountValue,
+                defaultQuotaLimit,
+                PlanVisibility.ADMIN_ONLY,
+                PlanCategory.FLEET,
+                PricingModel.FREE,
+                BenefitDisplayMode.DISCOUNT,
+                QuotaUnit.SESSION,
+                defaultQuotaLimit == null ? null : BigDecimal.valueOf(defaultQuotaLimit),
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                null,
+                active,
+                now
+        );
+    }
+
+    public SubscriptionPlan(UUID id,
+                            String code,
+                            String name,
+                            String description,
+                            String currencyCode,
+                            DiscountType totalFeeDiscountType,
+                            BigDecimal totalFeeDiscountValue,
+                            DiscountType sessionFeeDiscountType,
+                            BigDecimal sessionFeeDiscountValue,
+                            Integer defaultQuotaLimit,
+                            PlanVisibility visibility,
+                            PlanCategory planCategory,
+                            PricingModel pricingModel,
+                            BenefitDisplayMode benefitDisplayMode,
+                            QuotaUnit quotaUnit,
+                            BigDecimal defaultQuotaValue,
+                            BigDecimal subscriptionPriceAmount,
+                            Integer validityDays,
+                            UUID enterpriseId,
+                            String countryCode,
+                            Integer publicSortOrder,
+                            boolean allowStacking,
+                            String createdBy,
+                            boolean active,
+                            OffsetDateTime now) {
         this.id = id;
         this.code = code;
         this.name = name;
@@ -94,6 +192,19 @@ public class SubscriptionPlan {
         this.sessionFeeDiscountType = sessionFeeDiscountType;
         this.sessionFeeDiscountValue = sessionFeeDiscountValue;
         this.defaultQuotaLimit = defaultQuotaLimit;
+        this.visibility = visibility == null ? PlanVisibility.ADMIN_ONLY : visibility;
+        this.planCategory = planCategory == null ? PlanCategory.FLEET : planCategory;
+        this.pricingModel = pricingModel == null ? PricingModel.FREE : pricingModel;
+        this.benefitDisplayMode = benefitDisplayMode == null ? BenefitDisplayMode.DISCOUNT : benefitDisplayMode;
+        this.quotaUnit = quotaUnit == null ? QuotaUnit.SESSION : quotaUnit;
+        this.defaultQuotaValue = defaultQuotaValue;
+        this.subscriptionPriceAmount = subscriptionPriceAmount;
+        this.validityDays = validityDays;
+        this.enterpriseId = enterpriseId;
+        this.countryCode = countryCode;
+        this.publicSortOrder = publicSortOrder;
+        this.allowStacking = allowStacking;
+        this.createdBy = createdBy;
         this.active = active;
         this.createdAt = now;
         this.updatedAt = now;
@@ -220,6 +331,65 @@ public class SubscriptionPlan {
         return defaultQuotaLimit;
     }
 
+    public PlanVisibility getVisibility() {
+        return visibility;
+    }
+
+    public PlanCategory getPlanCategory() {
+        return planCategory;
+    }
+
+    public PricingModel getPricingModel() {
+        return pricingModel;
+    }
+
+    public BenefitDisplayMode getBenefitDisplayMode() {
+        return benefitDisplayMode;
+    }
+
+    public QuotaUnit getQuotaUnit() {
+        return quotaUnit;
+    }
+
+    public BigDecimal getDefaultQuotaValue() {
+        return defaultQuotaValue;
+    }
+
+    public BigDecimal getEffectiveDefaultQuotaValue() {
+        if (defaultQuotaValue != null) {
+            return defaultQuotaValue;
+        }
+        return defaultQuotaLimit == null ? null : BigDecimal.valueOf(defaultQuotaLimit);
+    }
+
+    public BigDecimal getSubscriptionPriceAmount() {
+        return subscriptionPriceAmount;
+    }
+
+    public Integer getValidityDays() {
+        return validityDays;
+    }
+
+    public UUID getEnterpriseId() {
+        return enterpriseId;
+    }
+
+    public String getCountryCode() {
+        return countryCode;
+    }
+
+    public Integer getPublicSortOrder() {
+        return publicSortOrder;
+    }
+
+    public boolean isAllowStacking() {
+        return allowStacking;
+    }
+
+    public String getCreatedBy() {
+        return createdBy;
+    }
+
     /**
      * Executes is active for `SubscriptionPlan`.
      *
@@ -261,6 +431,50 @@ public class SubscriptionPlan {
      * @param active input consumed by setActive.
      */
     public void setActive(boolean active) {
+        this.active = active;
+    }
+
+    public void updateDetails(String name,
+                              String description,
+                              String currencyCode,
+                              DiscountType totalFeeDiscountType,
+                              BigDecimal totalFeeDiscountValue,
+                              DiscountType sessionFeeDiscountType,
+                              BigDecimal sessionFeeDiscountValue,
+                              Integer defaultQuotaLimit,
+                              PlanVisibility visibility,
+                              PlanCategory planCategory,
+                              PricingModel pricingModel,
+                              BenefitDisplayMode benefitDisplayMode,
+                              QuotaUnit quotaUnit,
+                              BigDecimal defaultQuotaValue,
+                              BigDecimal subscriptionPriceAmount,
+                              Integer validityDays,
+                              UUID enterpriseId,
+                              String countryCode,
+                              Integer publicSortOrder,
+                              boolean allowStacking,
+                              boolean active) {
+        this.name = name;
+        this.description = description;
+        this.currencyCode = currencyCode;
+        this.totalFeeDiscountType = totalFeeDiscountType;
+        this.totalFeeDiscountValue = totalFeeDiscountValue;
+        this.sessionFeeDiscountType = sessionFeeDiscountType;
+        this.sessionFeeDiscountValue = sessionFeeDiscountValue;
+        this.defaultQuotaLimit = defaultQuotaLimit;
+        this.visibility = visibility == null ? PlanVisibility.ADMIN_ONLY : visibility;
+        this.planCategory = planCategory == null ? PlanCategory.FLEET : planCategory;
+        this.pricingModel = pricingModel == null ? PricingModel.FREE : pricingModel;
+        this.benefitDisplayMode = benefitDisplayMode == null ? BenefitDisplayMode.DISCOUNT : benefitDisplayMode;
+        this.quotaUnit = quotaUnit == null ? QuotaUnit.SESSION : quotaUnit;
+        this.defaultQuotaValue = defaultQuotaValue;
+        this.subscriptionPriceAmount = subscriptionPriceAmount;
+        this.validityDays = validityDays;
+        this.enterpriseId = enterpriseId;
+        this.countryCode = countryCode;
+        this.publicSortOrder = publicSortOrder;
+        this.allowStacking = allowStacking;
         this.active = active;
     }
 }

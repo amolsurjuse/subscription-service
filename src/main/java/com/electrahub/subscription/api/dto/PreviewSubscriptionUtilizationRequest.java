@@ -18,6 +18,33 @@ public record PreviewSubscriptionUtilizationRequest(
         @NotNull @PositiveOrZero BigDecimal sessionFee,
         @NotNull @PositiveOrZero BigDecimal idleFee,
         @NotNull @PositiveOrZero BigDecimal taxes,
-        @Positive Integer unitsConsumed
+        @Positive Integer unitsConsumed,
+        @Positive BigDecimal energyKwh,
+        @Positive BigDecimal quotaConsumedValue
 ) {
+    public PreviewSubscriptionUtilizationRequest(UUID allocationId,
+                                                 UUID userId,
+                                                 UUID organizationId,
+                                                 UUID groupId,
+                                                 String sessionReference,
+                                                 BigDecimal chargingCost,
+                                                 BigDecimal sessionFee,
+                                                 BigDecimal idleFee,
+                                                 BigDecimal taxes,
+                                                 Integer unitsConsumed) {
+        this(
+                allocationId,
+                userId,
+                organizationId,
+                groupId,
+                sessionReference,
+                chargingCost,
+                sessionFee,
+                idleFee,
+                taxes,
+                unitsConsumed,
+                null,
+                null
+        );
+    }
 }

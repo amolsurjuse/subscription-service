@@ -1,5 +1,9 @@
 package com.electrahub.subscription.api.dto;
 
+import com.electrahub.subscription.domain.BenefitDisplayMode;
+import com.electrahub.subscription.domain.PricingModel;
+import com.electrahub.subscription.domain.QuotaUnit;
+
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -26,6 +30,18 @@ public record SubscriptionUtilizationResponse(
         BigDecimal finalChargeExcludingTax,
         BigDecimal finalChargeIncludingTax,
         int unitsConsumed,
+        BigDecimal energyKwh,
+        QuotaUnit quotaUnit,
+        BigDecimal quotaConsumedValue,
+        BigDecimal coveredEnergyKwh,
+        BigDecimal uncoveredEnergyKwh,
+        BigDecimal benefitAmount,
+        BigDecimal regularAmount,
+        BigDecimal grossAmount,
+        BigDecimal netAmount,
+        boolean quotaExhausted,
+        PricingModel pricingModel,
+        BenefitDisplayMode benefitDisplayMode,
         Integer remainingQuota,
         String note,
         OffsetDateTime utilizedAt

@@ -1,0 +1,178 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0002-admin-subscription-entitlements
+      author: codex
+      changes:
+        - addColumn:
+            schemaName: subscription_mgmt
+            tableName: subscription_plans
+            columns:
+              - column:
+                  name: visibility
+                  type: VARCHAR(32)
+                  defaultValue: ADMIN_ONLY
+                  constraints:
+                    nullable: false
+              - column:
+                  name: plan_category
+                  type: VARCHAR(32)
+                  defaultValue: FLEET
+                  constraints:
+                    nullable: false
+              - column:
+                  name: pricing_model
+                  type: VARCHAR(32)
+                  defaultValue: FREE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: benefit_display_mode
+                  type: VARCHAR(32)
+                  defaultValue: DISCOUNT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: quota_unit
+                  type: VARCHAR(32)
+                  defaultValue: SESSION
+                  constraints:
+                    nullable: false
+              - column:
+                  name: default_quota_value
+                  type: NUMERIC(19,4)
+              - column:
+                  name: subscription_price_amount
+                  type: NUMERIC(19,4)
+              - column:
+                  name: validity_days
+                  type: INTEGER
+              - column:
+                  name: enterprise_id
+                  type: UUID
+              - column:
+                  name: country_code
+                  type: VARCHAR(2)
+              - column:
+                  name: public_sort_order
+                  type: INTEGER
+              - column:
+                  name: allow_stacking
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_by
+                  type: VARCHAR(100)
+        - sql:
+            sql: UPDATE subscription_mgmt.subscription_plans SET default_quota_value = default_quota_limit WHERE default_quota_value IS NULL AND default_quota_limit IS NOT NULL;
+        - addColumn:
+            schemaName: subscription_mgmt
+            tableName: subscription_allocations
+            columns:
+              - column:
+                  name: quota_limit_value
+                  type: NUMERIC(19,4)
+              - column:
+                  name: consumed_value
+                  type: NUMERIC(19,4)
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: source
+                  type: VARCHAR(32)
+                  defaultValue: ADMIN_CREATED
+                  constraints:
+                    nullable: false
+              - column:
+                  name: source_label
+                  type: VARCHAR(120)
+              - column:
+                  name: grant_reason
+                  type: VARCHAR(512)
+              - column:
+                  name: external_reference
+                  type: VARCHAR(120)
+              - column:
+                  name: vin
+                  type: VARCHAR(32)
+              - column:
+                  name: enterprise_id
+                  type: UUID
+              - column:
+                  name: last_used_at
+                  type: TIMESTAMP WITH TIME ZONE
+        - sql:
+            sql: UPDATE subscription_mgmt.subscription_allocations SET quota_limit_value = quota_limit WHERE quota_limit_value IS NULL AND quota_limit IS NOT NULL;
+        - addColumn:
+            schemaName: subscription_mgmt
+            tableName: subscription_utilizations
+            columns:
+              - column:
+                  name: energy_kwh
+                  type: NUMERIC(19,4)
+              - column:
+                  name: quota_unit
+                  type: VARCHAR(32)
+                  defaultValue: SESSION
+                  constraints:
+                    nullable: false
+              - column:
+                  name: quota_consumed_value
+                  type: NUMERIC(19,4)
+              - column:
+                  name: covered_energy_kwh
+                  type: NUMERIC(19,4)
+              - column:
+                  name: uncovered_energy_kwh
+                  type: NUMERIC(19,4)
+              - column:
+                  name: benefit_amount
+                  type: NUMERIC(19,4)
+              - column:
+                  name: regular_amount
+                  type: NUMERIC(19,4)
+              - column:
+                  name: gross_amount
+                  type: NUMERIC(19,4)
+              - column:
+                  name: net_amount
+                  type: NUMERIC(19,4)
+              - column:
+                  name: quota_exhausted
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+        - sql:
+            sql: UPDATE subscription_mgmt.subscription_utilizations SET energy_kwh = units_consumed, quota_consumed_value = units_consumed, covered_energy_kwh = units_consumed, uncovered_energy_kwh = 0, benefit_amount = total_discount_amount, regular_amount = final_charge_including_tax, gross_amount = eligible_subtotal + taxes, net_amount = final_charge_including_tax WHERE energy_kwh IS NULL;
+        - createIndex:
+            schemaName: subscription_mgmt
+            tableName: subscription_plans
+            indexName: idx_subscription_plans_visibility
+            columns:
+              - column:
+                  name: visibility
+              - column:
+                  name: plan_category
+              - column:
+                  name: active
+        - createIndex:
+            schemaName: subscription_mgmt
+            tableName: subscription_allocations
+            indexName: idx_subscription_allocations_source_status
+            columns:
+              - column:
+                  name: source
+              - column:
+                  name: status
+              - column:
+                  name: enterprise_id
+        - createIndex:
+            schemaName: subscription_mgmt
+            tableName: subscription_utilizations
+            indexName: idx_subscription_utilizations_session_ref
+            columns:
+              - column:
+                  name: session_reference

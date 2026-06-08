@@ -5,6 +5,11 @@ import org.slf4j.Logger;
 import com.electrahub.subscription.api.dto.CreateSubscriptionPlanRequest;
 import com.electrahub.subscription.api.dto.SubscriptionPlanResponse;
 import com.electrahub.subscription.api.dto.SubscriptionPlanSearchResponse;
+import com.electrahub.subscription.domain.BenefitDisplayMode;
+import com.electrahub.subscription.domain.PlanCategory;
+import com.electrahub.subscription.domain.PlanVisibility;
+import com.electrahub.subscription.domain.PricingModel;
+import com.electrahub.subscription.domain.QuotaUnit;
 import com.electrahub.subscription.service.SubscriptionPlanService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -12,6 +17,7 @@ import jakarta.validation.constraints.Min;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -56,9 +62,30 @@ public class SubscriptionPlanController {
     @GetMapping
     public SubscriptionPlanSearchResponse list(
             @RequestParam(defaultValue = "10") @Min(1) @Max(200) int limit,
-            @RequestParam(defaultValue = "0") @Min(0) int offset
+            @RequestParam(defaultValue = "0") @Min(0) int offset,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) PlanVisibility visibility,
+            @RequestParam(required = false) PlanCategory planCategory,
+            @RequestParam(required = false) PricingModel pricingModel,
+            @RequestParam(required = false) BenefitDisplayMode benefitDisplayMode,
+            @RequestParam(required = false) QuotaUnit quotaUnit,
+            @RequestParam(required = false) UUID enterpriseId,
+            @RequestParam(required = false) String countryCode,
+            @RequestParam(required = false) Boolean active
     ) {
-        return subscriptionPlanService.list(limit, offset);
+        return subscriptionPlanService.list(
+                limit,
+                offset,
+                search,
+                visibility,
+                planCategory,
+                pricingModel,
+                benefitDisplayMode,
+                quotaUnit,
+                enterpriseId,
+                countryCode,
+                active
+        );
     }
 
     /**
@@ -72,5 +99,11 @@ public class SubscriptionPlanController {
     @GetMapping("/{planId}")
     public SubscriptionPlanResponse get(@PathVariable UUID planId) {
         return subscriptionPlanService.get(planId);
+    }
+
+    @PutMapping("/{planId}")
+    public SubscriptionPlanResponse update(@PathVariable UUID planId,
+                                           @Valid @RequestBody CreateSubscriptionPlanRequest request) {
+        return subscriptionPlanService.update(planId, request);
     }
 }

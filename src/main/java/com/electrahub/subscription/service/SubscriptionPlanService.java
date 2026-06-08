@@ -8,10 +8,16 @@ import com.electrahub.subscription.api.dto.SubscriptionPlanSearchResponse;
 import com.electrahub.subscription.api.error.ConflictException;
 import com.electrahub.subscription.api.error.NotFoundException;
 import com.electrahub.subscription.domain.AuditAction;
+import com.electrahub.subscription.domain.BenefitDisplayMode;
 import com.electrahub.subscription.domain.DiscountType;
+import com.electrahub.subscription.domain.PlanCategory;
+import com.electrahub.subscription.domain.PlanVisibility;
+import com.electrahub.subscription.domain.PricingModel;
+import com.electrahub.subscription.domain.QuotaUnit;
 import com.electrahub.subscription.domain.SubscriptionPlan;
 import com.electrahub.subscription.repository.SubscriptionPlanRepository;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -66,6 +72,19 @@ public class SubscriptionPlanService {
                 request.sessionFeeDiscountType(),
                 normalizeMoney(request.sessionFeeDiscountValue()),
                 request.defaultQuotaLimit(),
+                defaultValue(request.visibility(), PlanVisibility.ADMIN_ONLY),
+                defaultValue(request.planCategory(), PlanCategory.FLEET),
+                defaultValue(request.pricingModel(), PricingModel.FREE),
+                defaultValue(request.benefitDisplayMode(), BenefitDisplayMode.DISCOUNT),
+                defaultValue(request.quotaUnit(), QuotaUnit.SESSION),
+                normalizeOptionalDecimal(request.defaultQuotaValue(), request.defaultQuotaLimit()),
+                normalizeOptionalMoney(request.subscriptionPriceAmount()),
+                request.validityDays(),
+                request.enterpriseId(),
+                normalizeCountry(request.countryCode()),
+                request.publicSortOrder(),
+                Boolean.TRUE.equals(request.allowStacking()),
+                normalizeOptionalText(request.createdBy()),
                 true,
                 now
         );
@@ -78,7 +97,7 @@ public class SubscriptionPlanService {
                 null,
                 null,
                 AuditAction.PLAN_CREATED,
-                "system",
+                defaultLabel(request.createdBy(), "system"),
                 "Created subscription plan " + plan.getCode()
         );
 
@@ -95,12 +114,41 @@ public class SubscriptionPlanService {
      * @return result produced by list.
      */
     @Transactional(readOnly = true)
-    public SubscriptionPlanSearchResponse list(int limit, int offset) {
+    public SubscriptionPlanSearchResponse list(int limit,
+                                               int offset,
+                                               String query,
+                                               PlanVisibility visibility,
+                                               PlanCategory planCategory,
+                                               PricingModel pricingModel,
+                                               BenefitDisplayMode benefitDisplayMode,
+                                               QuotaUnit quotaUnit,
+                                               UUID enterpriseId,
+                                               String countryCode,
+                                               Boolean active) {
         int safeLimit = Math.max(1, Math.min(limit, 200));
         int safeOffset = Math.max(0, offset);
         int page = safeOffset / safeLimit;
 
-        var pageResult = subscriptionPlanRepository.findAllByOrderByUpdatedAtDesc(PageRequest.of(page, safeLimit));
+        String normalizedQuery = normalizeOptionalText(query);
+        boolean queryEmpty = normalizedQuery == null;
+        String queryPattern = queryEmpty ? "" : "%" + normalizedQuery.toLowerCase(Locale.ROOT) + "%";
+        String normalizedCountry = normalizeCountry(countryCode);
+        boolean countryEmpty = normalizedCountry == null;
+
+        var pageResult = subscriptionPlanRepository.searchPaged(
+                queryEmpty,
+                queryPattern,
+                visibility,
+                planCategory,
+                pricingModel,
+                benefitDisplayMode,
+                quotaUnit,
+                enterpriseId,
+                countryEmpty,
+                normalizedCountry,
+                active,
+                PageRequest.of(page, safeLimit, Sort.by(Sort.Direction.DESC, "updatedAt"))
+        );
         var items = pageResult.getContent().stream()
                 .map(this::toResponse)
                 .toList();
@@ -122,6 +170,52 @@ public class SubscriptionPlanService {
     public SubscriptionPlanResponse get(UUID planId) {
         SubscriptionPlan plan = subscriptionPlanRepository.findById(planId)
                 .orElseThrow(() -> new NotFoundException("Subscription plan not found: " + planId));
+        return toResponse(plan);
+    }
+
+    @Transactional
+    public SubscriptionPlanResponse update(UUID planId, CreateSubscriptionPlanRequest request) {
+        SubscriptionPlan plan = subscriptionPlanRepository.findById(planId)
+                .orElseThrow(() -> new NotFoundException("Subscription plan not found: " + planId));
+
+        validateDiscount(request.totalFeeDiscountType(), request.totalFeeDiscountValue(), "total fee");
+        validateDiscount(request.sessionFeeDiscountType(), request.sessionFeeDiscountValue(), "session fee");
+
+        plan.updateDetails(
+                normalizeText(request.name()),
+                normalizeOptionalText(request.description()),
+                normalizeCurrency(request.currencyCode()),
+                request.totalFeeDiscountType(),
+                normalizeMoney(request.totalFeeDiscountValue()),
+                request.sessionFeeDiscountType(),
+                normalizeMoney(request.sessionFeeDiscountValue()),
+                request.defaultQuotaLimit(),
+                defaultValue(request.visibility(), plan.getVisibility()),
+                defaultValue(request.planCategory(), plan.getPlanCategory()),
+                defaultValue(request.pricingModel(), plan.getPricingModel()),
+                defaultValue(request.benefitDisplayMode(), plan.getBenefitDisplayMode()),
+                defaultValue(request.quotaUnit(), plan.getQuotaUnit()),
+                normalizeOptionalDecimal(request.defaultQuotaValue(), request.defaultQuotaLimit()),
+                normalizeOptionalMoney(request.subscriptionPriceAmount()),
+                request.validityDays(),
+                request.enterpriseId(),
+                normalizeCountry(request.countryCode()),
+                request.publicSortOrder(),
+                Boolean.TRUE.equals(request.allowStacking()),
+                request.active() == null || request.active()
+        );
+
+        subscriptionAuditService.record(
+                plan.getId(),
+                null,
+                null,
+                null,
+                null,
+                AuditAction.PLAN_UPDATED,
+                defaultLabel(request.createdBy(), "system"),
+                "Updated subscription plan " + plan.getCode()
+        );
+
         return toResponse(plan);
     }
 
@@ -158,6 +252,19 @@ public class SubscriptionPlanService {
                 plan.getSessionFeeDiscountType(),
                 plan.getSessionFeeDiscountValue(),
                 plan.getDefaultQuotaLimit(),
+                plan.getVisibility(),
+                plan.getPlanCategory(),
+                plan.getPricingModel(),
+                plan.getBenefitDisplayMode(),
+                plan.getQuotaUnit(),
+                plan.getEffectiveDefaultQuotaValue(),
+                plan.getSubscriptionPriceAmount(),
+                plan.getValidityDays(),
+                plan.getEnterpriseId(),
+                plan.getCountryCode(),
+                plan.getPublicSortOrder(),
+                plan.isAllowStacking(),
+                plan.getCreatedBy(),
                 plan.isActive(),
                 plan.getCreatedAt(),
                 plan.getUpdatedAt()
@@ -195,6 +302,17 @@ public class SubscriptionPlanService {
         return value == null ? BigDecimal.ZERO : value.stripTrailingZeros().max(BigDecimal.ZERO);
     }
 
+    private BigDecimal normalizeOptionalMoney(BigDecimal value) {
+        return value == null ? null : normalizeMoney(value);
+    }
+
+    private BigDecimal normalizeOptionalDecimal(BigDecimal value, Integer fallbackInteger) {
+        if (value != null) {
+            return value.stripTrailingZeros().max(BigDecimal.ZERO);
+        }
+        return fallbackInteger == null ? null : BigDecimal.valueOf(fallbackInteger);
+    }
+
     /**
      * Executes normalize code for `SubscriptionPlanService`.
      *
@@ -217,6 +335,11 @@ public class SubscriptionPlanService {
      */
     private String normalizeCurrency(String currencyCode) {
         return normalizeText(currencyCode).toUpperCase(Locale.ROOT);
+    }
+
+    private String normalizeCountry(String countryCode) {
+        String normalized = normalizeOptionalText(countryCode);
+        return normalized == null ? null : normalized.toUpperCase(Locale.ROOT);
     }
 
     /**
@@ -242,5 +365,14 @@ public class SubscriptionPlanService {
     private String normalizeOptionalText(String value) {
         String normalized = normalizeText(value);
         return normalized.isBlank() ? null : normalized;
+    }
+
+    private <T> T defaultValue(T value, T fallback) {
+        return value == null ? fallback : value;
+    }
+
+    private String defaultLabel(String value, String fallback) {
+        String normalized = normalizeOptionalText(value);
+        return normalized == null ? fallback : normalized;
     }
 }

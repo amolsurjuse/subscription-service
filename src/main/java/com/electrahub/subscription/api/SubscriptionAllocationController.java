@@ -3,10 +3,16 @@ package com.electrahub.subscription.api;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import com.electrahub.subscription.api.dto.CreateSubscriptionAllocationRequest;
+import com.electrahub.subscription.api.dto.PagedResponse;
 import com.electrahub.subscription.api.dto.SubscriptionAllocationResponse;
 import com.electrahub.subscription.api.dto.UpdateAllocationStatusRequest;
+import com.electrahub.subscription.domain.AllocationStatus;
+import com.electrahub.subscription.domain.AllocationSource;
+import com.electrahub.subscription.domain.AllocationType;
 import com.electrahub.subscription.service.SubscriptionAllocationService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -67,6 +73,35 @@ public class SubscriptionAllocationController {
                                                      @RequestParam(required = false) UUID groupId,
                                                      @RequestParam(required = false) Boolean activeOnly) {
         return subscriptionAllocationService.list(userId, organizationId, groupId, activeOnly);
+    }
+
+    @GetMapping("/paged")
+    public PagedResponse<SubscriptionAllocationResponse> listPaged(@RequestParam(required = false) UUID userId,
+                                                                   @RequestParam(required = false) UUID organizationId,
+                                                                   @RequestParam(required = false) UUID groupId,
+                                                                   @RequestParam(required = false) UUID planId,
+                                                                   @RequestParam(required = false) AllocationType allocationType,
+                                                                   @RequestParam(required = false) AllocationStatus status,
+                                                                   @RequestParam(required = false) AllocationSource source,
+                                                                   @RequestParam(required = false) UUID enterpriseId,
+                                                                   @RequestParam(required = false) Boolean exhausted,
+                                                                   @RequestParam(required = false) Boolean activeOnly,
+                                                                   @RequestParam(defaultValue = "10") @Min(1) @Max(200) int limit,
+                                                                   @RequestParam(defaultValue = "0") @Min(0) int offset) {
+        return subscriptionAllocationService.listPaged(
+                userId,
+                organizationId,
+                groupId,
+                planId,
+                allocationType,
+                status,
+                source,
+                enterpriseId,
+                exhausted,
+                activeOnly,
+                limit,
+                offset
+        );
     }
 
     @PatchMapping("/{allocationId}/status")

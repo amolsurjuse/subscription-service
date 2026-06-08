@@ -14,6 +14,7 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -46,8 +47,14 @@ public class SubscriptionAllocation {
     @Column(name = "quota_limit")
     private Integer quotaLimit;
 
+    @Column(name = "quota_limit_value", precision = 19, scale = 4)
+    private BigDecimal quotaLimitValue;
+
     @Column(name = "consumed_units", nullable = false)
     private int consumedUnits;
+
+    @Column(name = "consumed_value", nullable = false, precision = 19, scale = 4)
+    private BigDecimal consumedValue = BigDecimal.ZERO;
 
     @Column(name = "starts_at", nullable = false)
     private OffsetDateTime startsAt;
@@ -61,6 +68,28 @@ public class SubscriptionAllocation {
 
     @Column(name = "created_by", nullable = false, length = 100)
     private String createdBy;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 32)
+    private AllocationSource source = AllocationSource.ADMIN_CREATED;
+
+    @Column(name = "source_label", length = 120)
+    private String sourceLabel;
+
+    @Column(name = "grant_reason", length = 512)
+    private String grantReason;
+
+    @Column(name = "external_reference", length = 120)
+    private String externalReference;
+
+    @Column(length = 32)
+    private String vin;
+
+    @Column(name = "enterprise_id")
+    private UUID enterpriseId;
+
+    @Column(name = "last_used_at")
+    private OffsetDateTime lastUsedAt;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
@@ -95,6 +124,48 @@ public class SubscriptionAllocation {
                                   AllocationStatus status,
                                   String createdBy,
                                   OffsetDateTime now) {
+        this(
+                id,
+                plan,
+                allocationType,
+                userId,
+                organizationId,
+                groupId,
+                quotaLimit,
+                quotaLimit == null ? null : BigDecimal.valueOf(quotaLimit),
+                startsAt,
+                endsAt,
+                status,
+                createdBy,
+                AllocationSource.ADMIN_CREATED,
+                null,
+                null,
+                null,
+                null,
+                null,
+                now
+        );
+    }
+
+    public SubscriptionAllocation(UUID id,
+                                  SubscriptionPlan plan,
+                                  AllocationType allocationType,
+                                  UUID userId,
+                                  UUID organizationId,
+                                  UUID groupId,
+                                  Integer quotaLimit,
+                                  BigDecimal quotaLimitValue,
+                                  OffsetDateTime startsAt,
+                                  OffsetDateTime endsAt,
+                                  AllocationStatus status,
+                                  String createdBy,
+                                  AllocationSource source,
+                                  String sourceLabel,
+                                  String grantReason,
+                                  String externalReference,
+                                  String vin,
+                                  UUID enterpriseId,
+                                  OffsetDateTime now) {
         this.id = id;
         this.plan = plan;
         this.allocationType = allocationType;
@@ -102,10 +173,18 @@ public class SubscriptionAllocation {
         this.organizationId = organizationId;
         this.groupId = groupId;
         this.quotaLimit = quotaLimit;
+        this.quotaLimitValue = quotaLimitValue;
+        this.consumedValue = BigDecimal.ZERO;
         this.startsAt = startsAt;
         this.endsAt = endsAt;
         this.status = status;
         this.createdBy = createdBy;
+        this.source = source == null ? AllocationSource.ADMIN_CREATED : source;
+        this.sourceLabel = sourceLabel;
+        this.grantReason = grantReason;
+        this.externalReference = externalReference;
+        this.vin = vin;
+        this.enterpriseId = enterpriseId;
         this.createdAt = now;
         this.updatedAt = now;
     }
@@ -198,6 +277,10 @@ public class SubscriptionAllocation {
         return quotaLimit;
     }
 
+    public BigDecimal getQuotaLimitValue() {
+        return quotaLimitValue;
+    }
+
     /**
      * Retrieves get consumed units for `SubscriptionAllocation`.
      *
@@ -207,6 +290,13 @@ public class SubscriptionAllocation {
      */
     public int getConsumedUnits() {
         return consumedUnits;
+    }
+
+    public BigDecimal getConsumedValue() {
+        if (consumedValue != null) {
+            return consumedValue;
+        }
+        return BigDecimal.valueOf(consumedUnits);
     }
 
     /**
@@ -253,6 +343,34 @@ public class SubscriptionAllocation {
         return createdBy;
     }
 
+    public AllocationSource getSource() {
+        return source;
+    }
+
+    public String getSourceLabel() {
+        return sourceLabel;
+    }
+
+    public String getGrantReason() {
+        return grantReason;
+    }
+
+    public String getExternalReference() {
+        return externalReference;
+    }
+
+    public String getVin() {
+        return vin;
+    }
+
+    public UUID getEnterpriseId() {
+        return enterpriseId != null ? enterpriseId : plan.getEnterpriseId();
+    }
+
+    public OffsetDateTime getLastUsedAt() {
+        return lastUsedAt;
+    }
+
     /**
      * Retrieves get created at for `SubscriptionAllocation`.
      *
@@ -286,6 +404,17 @@ public class SubscriptionAllocation {
         return quotaLimit != null ? quotaLimit : plan.getDefaultQuotaLimit();
     }
 
+    public BigDecimal getEffectiveQuotaLimitValue() {
+        if (quotaLimitValue != null) {
+            return quotaLimitValue;
+        }
+        BigDecimal planQuota = plan.getEffectiveDefaultQuotaValue();
+        if (planQuota != null) {
+            return planQuota;
+        }
+        return getEffectiveQuotaLimit() == null ? null : BigDecimal.valueOf(getEffectiveQuotaLimit());
+    }
+
     /**
      * Retrieves get remaining quota for `SubscriptionAllocation`.
      *
@@ -299,6 +428,15 @@ public class SubscriptionAllocation {
             return null;
         }
         return Math.max(0, effectiveQuotaLimit - consumedUnits);
+    }
+
+    public BigDecimal getRemainingQuotaValue() {
+        BigDecimal effectiveQuotaLimitValue = getEffectiveQuotaLimitValue();
+        if (effectiveQuotaLimitValue == null) {
+            return null;
+        }
+        BigDecimal remaining = effectiveQuotaLimitValue.subtract(getConsumedValue());
+        return remaining.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : remaining;
     }
 
     /**
@@ -323,6 +461,15 @@ public class SubscriptionAllocation {
      */
     public void incrementConsumedUnits(int units) {
         this.consumedUnits += units;
+        this.consumedValue = getConsumedValue().add(BigDecimal.valueOf(units));
+        this.lastUsedAt = OffsetDateTime.now();
+    }
+
+    public void incrementConsumedValue(BigDecimal value) {
+        BigDecimal normalized = value == null ? BigDecimal.ZERO : value.max(BigDecimal.ZERO);
+        this.consumedValue = getConsumedValue().add(normalized);
+        this.consumedUnits += normalized.intValue();
+        this.lastUsedAt = OffsetDateTime.now();
     }
 
     /**

@@ -2,12 +2,15 @@ package com.electrahub.subscription.api;
 
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
+import com.electrahub.subscription.api.dto.PagedResponse;
 import com.electrahub.subscription.api.dto.PreviewSubscriptionUtilizationRequest;
 import com.electrahub.subscription.api.dto.RecordSubscriptionUtilizationRequest;
 import com.electrahub.subscription.api.dto.SubscriptionUtilizationPreviewResponse;
 import com.electrahub.subscription.api.dto.SubscriptionUtilizationResponse;
 import com.electrahub.subscription.service.SubscriptionPricingService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @RestController
@@ -78,5 +82,30 @@ public class SubscriptionUtilizationController {
     @GetMapping
     public List<SubscriptionUtilizationResponse> list(@RequestParam UUID userId) {
         return subscriptionPricingService.listByUser(userId);
+    }
+
+    @GetMapping("/paged")
+    public PagedResponse<SubscriptionUtilizationResponse> listPaged(@RequestParam(required = false) UUID userId,
+                                                                    @RequestParam(required = false) UUID allocationId,
+                                                                    @RequestParam(required = false) UUID planId,
+                                                                    @RequestParam(required = false) UUID enterpriseId,
+                                                                    @RequestParam(required = false) String sessionReference,
+                                                                    @RequestParam(required = false) OffsetDateTime from,
+                                                                    @RequestParam(required = false) OffsetDateTime to,
+                                                                    @RequestParam(required = false) Boolean quotaExhausted,
+                                                                    @RequestParam(defaultValue = "10") @Min(1) @Max(200) int limit,
+                                                                    @RequestParam(defaultValue = "0") @Min(0) int offset) {
+        return subscriptionPricingService.listPaged(
+                userId,
+                allocationId,
+                planId,
+                enterpriseId,
+                sessionReference,
+                from,
+                to,
+                quotaExhausted,
+                limit,
+                offset
+        );
     }
 }
