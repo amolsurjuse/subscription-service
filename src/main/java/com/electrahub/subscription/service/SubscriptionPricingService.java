@@ -10,11 +10,14 @@ import com.electrahub.subscription.api.dto.SubscriptionUtilizationResponse;
 import com.electrahub.subscription.api.error.NotFoundException;
 import com.electrahub.subscription.domain.AllocationType;
 import com.electrahub.subscription.domain.AuditAction;
+import com.electrahub.subscription.domain.AllocationSource;
+import com.electrahub.subscription.domain.AllocationStatus;
 import com.electrahub.subscription.domain.DiscountType;
 import com.electrahub.subscription.domain.SubscriptionAllocation;
 import com.electrahub.subscription.domain.SubscriptionPlan;
 import com.electrahub.subscription.domain.SubscriptionUtilization;
 import com.electrahub.subscription.repository.SubscriptionAllocationRepository;
+import com.electrahub.subscription.repository.SubscriptionPlanRepository;
 import com.electrahub.subscription.repository.SubscriptionUtilizationRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -34,17 +37,21 @@ public class SubscriptionPricingService {
 
 
     private static final BigDecimal ONE_HUNDRED = BigDecimal.valueOf(100);
+    private static final String NEW_USER_PROMO_PLAN_CODE = "NEW_USER_20_OFF_500KWH_1Y";
 
     private final SubscriptionAllocationRepository subscriptionAllocationRepository;
+    private final SubscriptionPlanRepository subscriptionPlanRepository;
     private final SubscriptionUtilizationRepository subscriptionUtilizationRepository;
     private final SubscriptionAllocationService subscriptionAllocationService;
     private final SubscriptionAuditService subscriptionAuditService;
 
     public SubscriptionPricingService(SubscriptionAllocationRepository subscriptionAllocationRepository,
+                                      SubscriptionPlanRepository subscriptionPlanRepository,
                                       SubscriptionUtilizationRepository subscriptionUtilizationRepository,
                                       SubscriptionAllocationService subscriptionAllocationService,
                                       SubscriptionAuditService subscriptionAuditService) {
         this.subscriptionAllocationRepository = subscriptionAllocationRepository;
+        this.subscriptionPlanRepository = subscriptionPlanRepository;
         this.subscriptionUtilizationRepository = subscriptionUtilizationRepository;
         this.subscriptionAllocationService = subscriptionAllocationService;
         this.subscriptionAuditService = subscriptionAuditService;
@@ -58,7 +65,7 @@ public class SubscriptionPricingService {
      * @param request input consumed by preview.
      * @return result produced by preview.
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public SubscriptionUtilizationPreviewResponse preview(PreviewSubscriptionUtilizationRequest request) {
         LOGGER.info(" Entering SubscriptionPricingService#preview");
         LOGGER.debug(" Entering SubscriptionPricingService#preview with debug context");
@@ -358,7 +365,54 @@ public class SubscriptionPricingService {
                         .comparingInt(this::priority)
                         .thenComparing(SubscriptionAllocation::getStartsAt, Comparator.reverseOrder()))
                 .findFirst()
+                .or(() -> maybeGrantNewUserPromotion(userId, now))
                 .orElseThrow(() -> new NotFoundException("No active subscription allocation found for requested target"));
+    }
+
+    private java.util.Optional<SubscriptionAllocation> maybeGrantNewUserPromotion(UUID userId, OffsetDateTime now) {
+        if (userId == null) {
+            return java.util.Optional.empty();
+        }
+        return subscriptionPlanRepository.findByCodeIgnoreCase(NEW_USER_PROMO_PLAN_CODE)
+                .filter(SubscriptionPlan::isActive)
+                .map(plan -> {
+                    OffsetDateTime startsAt = now;
+                    OffsetDateTime endsAt = plan.getValidityDays() == null ? null : startsAt.plusDays(plan.getValidityDays());
+                    BigDecimal quota = plan.getEffectiveDefaultQuotaValue();
+                    SubscriptionAllocation allocation = new SubscriptionAllocation(
+                            UUID.randomUUID(),
+                            plan,
+                            AllocationType.USER,
+                            userId,
+                            null,
+                            null,
+                            quota == null ? null : quota.intValue(),
+                            quota,
+                            startsAt,
+                            endsAt,
+                            AllocationStatus.ACTIVE,
+                            "system",
+                            AllocationSource.OEM_GRANTED,
+                            "New user promotion",
+                            "Automatic 20% charging discount for new drivers",
+                            "new-user-promo:" + userId,
+                            null,
+                            plan.getEnterpriseId(),
+                            now
+                    );
+                    subscriptionAllocationRepository.save(allocation);
+                    subscriptionAuditService.record(
+                            plan.getId(),
+                            allocation.getId(),
+                            userId,
+                            null,
+                            null,
+                            AuditAction.ALLOCATION_GRANTED,
+                            "system",
+                            "Automatically granted new user charging promotion"
+                    );
+                    return allocation;
+                });
     }
 
     private boolean matchesTarget(SubscriptionAllocation allocation,

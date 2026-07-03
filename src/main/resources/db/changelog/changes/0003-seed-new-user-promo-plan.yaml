@@ -1,0 +1,80 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0003-seed-new-user-promo-plan
+      author: codex
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO subscription_mgmt.subscription_plans (
+                  id,
+                  code,
+                  name,
+                  description,
+                  currency_code,
+                  total_fee_discount_type,
+                  total_fee_discount_value,
+                  session_fee_discount_type,
+                  session_fee_discount_value,
+                  default_quota_limit,
+                  active,
+                  created_at,
+                  updated_at,
+                  visibility,
+                  plan_category,
+                  pricing_model,
+                  benefit_display_mode,
+                  quota_unit,
+                  default_quota_value,
+                  subscription_price_amount,
+                  validity_days,
+                  country_code,
+                  public_sort_order,
+                  allow_stacking,
+                  created_by
+              )
+              VALUES (
+                  '7e3e15e8-3c0d-4b31-9bd6-2d2d2f3a5001',
+                  'NEW_USER_20_OFF_500KWH_1Y',
+                  'New Driver 20% Charging Discount',
+                  'Automatic new-driver promotion: 20% off charging for one year or the first 500 kWh, whichever comes first.',
+                  'USD',
+                  'PERCENTAGE',
+                  20.0000,
+                  'NONE',
+                  0.0000,
+                  500,
+                  TRUE,
+                  NOW(),
+                  NOW(),
+                  'ADMIN_ONLY',
+                  'DRIVER_PUBLIC',
+                  'GRANT',
+                  'DISCOUNT',
+                  'KWH',
+                  500.0000,
+                  0.0000,
+                  365,
+                  'US',
+                  10,
+                  FALSE,
+                  'system'
+              )
+              ON CONFLICT (code) DO UPDATE
+              SET name = EXCLUDED.name,
+                  description = EXCLUDED.description,
+                  total_fee_discount_type = EXCLUDED.total_fee_discount_type,
+                  total_fee_discount_value = EXCLUDED.total_fee_discount_value,
+                  session_fee_discount_type = EXCLUDED.session_fee_discount_type,
+                  session_fee_discount_value = EXCLUDED.session_fee_discount_value,
+                  default_quota_limit = EXCLUDED.default_quota_limit,
+                  visibility = EXCLUDED.visibility,
+                  plan_category = EXCLUDED.plan_category,
+                  pricing_model = EXCLUDED.pricing_model,
+                  benefit_display_mode = EXCLUDED.benefit_display_mode,
+                  quota_unit = EXCLUDED.quota_unit,
+                  default_quota_value = EXCLUDED.default_quota_value,
+                  subscription_price_amount = EXCLUDED.subscription_price_amount,
+                  validity_days = EXCLUDED.validity_days,
+                  country_code = EXCLUDED.country_code,
+                  active = TRUE,
+                  updated_at = NOW();

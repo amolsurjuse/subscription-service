@@ -16,6 +16,7 @@ import com.electrahub.subscription.domain.SubscriptionPlan;
 import com.electrahub.subscription.domain.SubscriptionUtilization;
 import com.electrahub.subscription.repository.SubscriptionAllocationRepository;
 import com.electrahub.subscription.repository.SubscriptionAuditLogRepository;
+import com.electrahub.subscription.repository.SubscriptionPlanRepository;
 import com.electrahub.subscription.repository.SubscriptionUtilizationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,6 +55,7 @@ class SubscriptionPricingServiceTest {
         auditStore = new InMemoryAuditStore();
 
         SubscriptionAllocationRepository allocationRepository = allocationStore.createRepository();
+        SubscriptionPlanRepository planRepository = createPlanRepository();
         SubscriptionUtilizationRepository utilizationRepository = utilizationStore.createRepository();
         SubscriptionAuditService auditService = new SubscriptionAuditService(auditStore.createRepository());
 
@@ -70,9 +72,22 @@ class SubscriptionPricingServiceTest {
 
         subscriptionPricingService = new SubscriptionPricingService(
                 allocationRepository,
+                planRepository,
                 utilizationRepository,
                 subscriptionAllocationService,
                 auditService
+        );
+    }
+
+    private SubscriptionPlanRepository createPlanRepository() {
+        return (SubscriptionPlanRepository) Proxy.newProxyInstance(
+                SubscriptionPlanRepository.class.getClassLoader(),
+                new Class[]{SubscriptionPlanRepository.class},
+                (proxy, method, args) -> switch (method.getName()) {
+                    case "findByCodeIgnoreCase" -> Optional.empty();
+                    case "toString" -> "InMemoryPlanRepository";
+                    default -> throw new UnsupportedOperationException(method.getName());
+                }
         );
     }
 

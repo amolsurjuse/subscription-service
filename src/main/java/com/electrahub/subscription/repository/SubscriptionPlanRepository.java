@@ -11,6 +11,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.util.Optional;
 import java.util.UUID;
 
 public interface SubscriptionPlanRepository extends JpaRepository<SubscriptionPlan, UUID> {
@@ -24,6 +25,8 @@ public interface SubscriptionPlanRepository extends JpaRepository<SubscriptionPl
      * @return result produced by existsByCodeIgnoreCase.
      */
     boolean existsByCodeIgnoreCase(String code);
+
+    Optional<SubscriptionPlan> findByCodeIgnoreCase(String code);
 
     /**
      * Retrieves find all by order by updated at desc for `SubscriptionPlanRepository`.
