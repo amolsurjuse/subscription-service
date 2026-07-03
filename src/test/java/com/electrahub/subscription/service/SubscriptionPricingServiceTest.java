@@ -72,7 +72,6 @@ class SubscriptionPricingServiceTest {
 
         subscriptionPricingService = new SubscriptionPricingService(
                 allocationRepository,
-                planRepository,
                 utilizationRepository,
                 subscriptionAllocationService,
                 auditService

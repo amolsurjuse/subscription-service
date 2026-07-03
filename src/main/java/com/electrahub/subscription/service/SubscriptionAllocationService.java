@@ -4,8 +4,11 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import com.electrahub.subscription.api.dto.CreateSubscriptionAllocationRequest;
 import com.electrahub.subscription.api.dto.CreateSubscriptionGrantRequest;
+import com.electrahub.subscription.api.dto.DriverSubscriptionPlanResponse;
+import com.electrahub.subscription.api.dto.DriverSubscriptionResponse;
 import com.electrahub.subscription.api.dto.PagedResponse;
 import com.electrahub.subscription.api.dto.SubscriptionAllocationResponse;
+import com.electrahub.subscription.api.dto.SubscriptionPlanResponse;
 import com.electrahub.subscription.api.dto.UpdateAllocationStatusRequest;
 import com.electrahub.subscription.api.error.NotFoundException;
 import com.electrahub.subscription.domain.AllocationStatus;
@@ -13,6 +16,7 @@ import com.electrahub.subscription.domain.AllocationSource;
 import com.electrahub.subscription.domain.AllocationType;
 import com.electrahub.subscription.domain.AuditAction;
 import com.electrahub.subscription.domain.PlanCategory;
+import com.electrahub.subscription.domain.PlanVisibility;
 import com.electrahub.subscription.domain.SubscriptionAllocation;
 import com.electrahub.subscription.domain.SubscriptionPlan;
 import com.electrahub.subscription.repository.SubscriptionAllocationRepository;
@@ -30,6 +34,7 @@ import java.util.UUID;
 @Service
 public class SubscriptionAllocationService {
     private static final Logger LOGGER = LoggerFactory.getLogger(SubscriptionAllocationService.class);
+    private static final String NEW_USER_PROMO_PLAN_CODE = "NEW_USER_20_OFF_500KWH_1Y";
 
 
     private final SubscriptionAllocationRepository subscriptionAllocationRepository;
@@ -229,6 +234,74 @@ public class SubscriptionAllocationService {
         );
     }
 
+    @Transactional
+    public List<DriverSubscriptionResponse> listDriverSubscriptions(UUID userId,
+                                                                    boolean activeOnly,
+                                                                    int limit,
+                                                                    int offset) {
+        ensureNewUserPromotion(userId);
+        int safeLimit = Math.max(1, Math.min(limit, 100));
+        int safeOffset = Math.max(0, offset);
+        OffsetDateTime now = OffsetDateTime.now();
+
+        return subscriptionAllocationRepository.findAllWithPlan().stream()
+                .filter(allocation -> userId.equals(allocation.getUserId()))
+                .filter(allocation -> !activeOnly || allocation.isActiveAt(now))
+                .sorted(Comparator.comparing(SubscriptionAllocation::getCreatedAt).reversed())
+                .skip(safeOffset)
+                .limit(safeLimit)
+                .map(this::toDriverResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<DriverSubscriptionPlanResponse> listDriverPlans(String countryCode,
+                                                                String currency,
+                                                                int limit,
+                                                                int offset) {
+        String normalizedCountry = normalizeOptionalText(countryCode);
+        String normalizedCurrency = normalizeOptionalText(currency);
+        return subscriptionPlanService.list(
+                        Math.max(1, Math.min(limit, 100)),
+                        Math.max(0, offset),
+                        null,
+                        PlanVisibility.PUBLIC,
+                        PlanCategory.DRIVER_PUBLIC,
+                        null,
+                        null,
+                        null,
+                        null,
+                        normalizedCountry,
+                        true
+                )
+                .items()
+                .stream()
+                .filter(plan -> normalizedCurrency == null || normalizedCurrency.equalsIgnoreCase(plan.currencyCode()))
+                .map(this::toDriverPlanResponse)
+                .toList();
+    }
+
+    @Transactional
+    public SubscriptionAllocation ensureNewUserPromotion(UUID userId) {
+        if (userId == null) {
+            return null;
+        }
+
+        OffsetDateTime now = OffsetDateTime.now();
+        var existing = subscriptionAllocationRepository.findAllWithPlan().stream()
+                .filter(allocation -> userId.equals(allocation.getUserId()))
+                .filter(allocation -> NEW_USER_PROMO_PLAN_CODE.equalsIgnoreCase(allocation.getPlan().getCode()))
+                .max(Comparator.comparing(SubscriptionAllocation::getCreatedAt));
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+
+        return subscriptionPlanService.findByCode(NEW_USER_PROMO_PLAN_CODE)
+                .filter(SubscriptionPlan::isActive)
+                .map(plan -> createNewUserPromotionAllocation(userId, plan, now))
+                .orElse(null);
+    }
+
     /**
      * Updates update status for `SubscriptionAllocationService`.
      *
@@ -315,6 +388,86 @@ public class SubscriptionAllocationService {
                 allocation.getCreatedAt(),
                 allocation.getUpdatedAt()
         );
+    }
+
+    private DriverSubscriptionResponse toDriverResponse(SubscriptionAllocation allocation) {
+        return new DriverSubscriptionResponse(
+                allocation.getId(),
+                allocation.getPlan().getId(),
+                allocation.getPlan().getCode(),
+                allocation.getPlan().getName(),
+                allocation.getSource().name(),
+                allocation.getSourceLabel(),
+                allocation.getPlan().getPricingModel(),
+                allocation.getPlan().getBenefitDisplayMode(),
+                allocation.getPlan().getQuotaUnit(),
+                allocation.getEffectiveQuotaLimitValue(),
+                allocation.getConsumedValue(),
+                allocation.getRemainingQuotaValue(),
+                allocation.getStartsAt(),
+                allocation.getEndsAt(),
+                allocation.getStatus()
+        );
+    }
+
+    private DriverSubscriptionPlanResponse toDriverPlanResponse(SubscriptionPlanResponse plan) {
+        return new DriverSubscriptionPlanResponse(
+                plan.id(),
+                plan.code(),
+                plan.name(),
+                plan.description(),
+                plan.currencyCode(),
+                plan.planCategory(),
+                plan.pricingModel(),
+                plan.benefitDisplayMode(),
+                plan.quotaUnit(),
+                plan.defaultQuotaValue(),
+                plan.validityDays(),
+                plan.totalFeeDiscountType(),
+                plan.totalFeeDiscountValue(),
+                plan.sessionFeeDiscountType(),
+                plan.sessionFeeDiscountValue(),
+                plan.active()
+        );
+    }
+
+    private SubscriptionAllocation createNewUserPromotionAllocation(UUID userId, SubscriptionPlan plan, OffsetDateTime now) {
+        OffsetDateTime startsAt = now;
+        OffsetDateTime endsAt = plan.getValidityDays() == null ? null : startsAt.plusDays(plan.getValidityDays());
+        BigDecimal quota = plan.getEffectiveDefaultQuotaValue();
+        SubscriptionAllocation allocation = new SubscriptionAllocation(
+                UUID.randomUUID(),
+                plan,
+                AllocationType.USER,
+                userId,
+                null,
+                null,
+                quota == null ? null : quota.intValue(),
+                quota,
+                startsAt,
+                endsAt,
+                AllocationStatus.ACTIVE,
+                "system",
+                AllocationSource.OEM_GRANTED,
+                "New user promotion",
+                "Automatic 20% charging discount for new drivers",
+                "new-user-promo:" + userId,
+                null,
+                plan.getEnterpriseId(),
+                now
+        );
+        subscriptionAllocationRepository.save(allocation);
+        subscriptionAuditService.record(
+                plan.getId(),
+                allocation.getId(),
+                userId,
+                null,
+                null,
+                AuditAction.ALLOCATION_GRANTED,
+                "system",
+                "Automatically granted new user charging promotion"
+        );
+        return allocation;
     }
 
     /**

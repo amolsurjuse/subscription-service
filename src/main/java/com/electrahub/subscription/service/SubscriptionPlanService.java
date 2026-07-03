@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -230,6 +231,10 @@ public class SubscriptionPlanService {
     SubscriptionPlan requirePlan(UUID planId) {
         return subscriptionPlanRepository.findById(planId)
                 .orElseThrow(() -> new NotFoundException("Subscription plan not found: " + planId));
+    }
+
+    Optional<SubscriptionPlan> findByCode(String code) {
+        return subscriptionPlanRepository.findByCodeIgnoreCase(code);
     }
 
     /**

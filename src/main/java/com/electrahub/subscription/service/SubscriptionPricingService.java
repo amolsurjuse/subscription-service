@@ -40,18 +40,15 @@ public class SubscriptionPricingService {
     private static final String NEW_USER_PROMO_PLAN_CODE = "NEW_USER_20_OFF_500KWH_1Y";
 
     private final SubscriptionAllocationRepository subscriptionAllocationRepository;
-    private final SubscriptionPlanRepository subscriptionPlanRepository;
     private final SubscriptionUtilizationRepository subscriptionUtilizationRepository;
     private final SubscriptionAllocationService subscriptionAllocationService;
     private final SubscriptionAuditService subscriptionAuditService;
 
     public SubscriptionPricingService(SubscriptionAllocationRepository subscriptionAllocationRepository,
-                                      SubscriptionPlanRepository subscriptionPlanRepository,
                                       SubscriptionUtilizationRepository subscriptionUtilizationRepository,
                                       SubscriptionAllocationService subscriptionAllocationService,
                                       SubscriptionAuditService subscriptionAuditService) {
         this.subscriptionAllocationRepository = subscriptionAllocationRepository;
-        this.subscriptionPlanRepository = subscriptionPlanRepository;
         this.subscriptionUtilizationRepository = subscriptionUtilizationRepository;
         this.subscriptionAllocationService = subscriptionAllocationService;
         this.subscriptionAuditService = subscriptionAuditService;
@@ -373,46 +370,7 @@ public class SubscriptionPricingService {
         if (userId == null) {
             return java.util.Optional.empty();
         }
-        return subscriptionPlanRepository.findByCodeIgnoreCase(NEW_USER_PROMO_PLAN_CODE)
-                .filter(SubscriptionPlan::isActive)
-                .map(plan -> {
-                    OffsetDateTime startsAt = now;
-                    OffsetDateTime endsAt = plan.getValidityDays() == null ? null : startsAt.plusDays(plan.getValidityDays());
-                    BigDecimal quota = plan.getEffectiveDefaultQuotaValue();
-                    SubscriptionAllocation allocation = new SubscriptionAllocation(
-                            UUID.randomUUID(),
-                            plan,
-                            AllocationType.USER,
-                            userId,
-                            null,
-                            null,
-                            quota == null ? null : quota.intValue(),
-                            quota,
-                            startsAt,
-                            endsAt,
-                            AllocationStatus.ACTIVE,
-                            "system",
-                            AllocationSource.OEM_GRANTED,
-                            "New user promotion",
-                            "Automatic 20% charging discount for new drivers",
-                            "new-user-promo:" + userId,
-                            null,
-                            plan.getEnterpriseId(),
-                            now
-                    );
-                    subscriptionAllocationRepository.save(allocation);
-                    subscriptionAuditService.record(
-                            plan.getId(),
-                            allocation.getId(),
-                            userId,
-                            null,
-                            null,
-                            AuditAction.ALLOCATION_GRANTED,
-                            "system",
-                            "Automatically granted new user charging promotion"
-                    );
-                    return allocation;
-                });
+        return java.util.Optional.ofNullable(subscriptionAllocationService.ensureNewUserPromotion(userId));
     }
 
     private boolean matchesTarget(SubscriptionAllocation allocation,
