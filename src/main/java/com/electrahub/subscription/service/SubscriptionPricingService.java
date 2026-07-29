@@ -16,6 +16,7 @@ import com.electrahub.subscription.domain.DiscountType;
 import com.electrahub.subscription.domain.SubscriptionAllocation;
 import com.electrahub.subscription.domain.SubscriptionPlan;
 import com.electrahub.subscription.domain.SubscriptionUtilization;
+import com.electrahub.subscription.domain.QuotaUnit;
 import com.electrahub.subscription.repository.SubscriptionAllocationRepository;
 import com.electrahub.subscription.repository.SubscriptionPlanRepository;
 import com.electrahub.subscription.repository.SubscriptionUtilizationRepository;
@@ -117,7 +118,10 @@ public class SubscriptionPricingService {
                 coverage.quotaExhausted(),
                 allocation.getPlan().getPricingModel(),
                 allocation.getPlan().getBenefitDisplayMode(),
-                remainingQuotaAfterUse(allocation, coverage.quotaConsumedValue())
+                remainingQuotaAfterUse(allocation, coverage.quotaConsumedValue()),
+                allocation.getPlan().getTotalFeeDiscountType(),
+                allocation.getPlan().getTotalFeeDiscountValue(),
+                remainingQuotaValueAfterUse(allocation, coverage.quotaConsumedValue())
         );
     }
 
@@ -413,21 +417,25 @@ public class SubscriptionPricingService {
         BigDecimal normalizedIdleFee = money(idleFee);
         BigDecimal normalizedTaxes = money(taxes);
 
-        BigDecimal eligibleSubtotal = money(normalizedChargingCost.add(normalizedSessionFee).add(normalizedIdleFee));
+        BigDecimal grossSubtotal = money(normalizedChargingCost.add(normalizedSessionFee).add(normalizedIdleFee));
+        boolean energyScopedBenefit = plan.getQuotaUnit() == QuotaUnit.KWH;
+        BigDecimal eligibleSubtotal = energyScopedBenefit ? normalizedChargingCost : grossSubtotal;
         BigDecimal totalFeeDiscountAmount = discountAmount(
                 plan.getTotalFeeDiscountType(),
                 plan.getTotalFeeDiscountValue(),
                 eligibleSubtotal
         );
-        BigDecimal remainingAfterTotalDiscount = money(eligibleSubtotal.subtract(totalFeeDiscountAmount));
-        BigDecimal sessionFeeDiscountAmount = discountAmount(
-                plan.getSessionFeeDiscountType(),
-                plan.getSessionFeeDiscountValue(),
-                normalizedSessionFee.min(remainingAfterTotalDiscount)
-        );
+        BigDecimal remainingAfterTotalDiscount = money(grossSubtotal.subtract(totalFeeDiscountAmount));
+        BigDecimal sessionFeeDiscountAmount = energyScopedBenefit
+                ? BigDecimal.ZERO.setScale(4, RoundingMode.HALF_UP)
+                : discountAmount(
+                        plan.getSessionFeeDiscountType(),
+                        plan.getSessionFeeDiscountValue(),
+                        normalizedSessionFee.min(remainingAfterTotalDiscount)
+                );
         BigDecimal totalDiscountAmount = money(totalFeeDiscountAmount.add(sessionFeeDiscountAmount));
 
-        BigDecimal finalChargeExcludingTax = money(eligibleSubtotal.subtract(totalDiscountAmount));
+        BigDecimal finalChargeExcludingTax = money(grossSubtotal.subtract(totalDiscountAmount));
         BigDecimal finalChargeIncludingTax = money(finalChargeExcludingTax.add(normalizedTaxes));
 
         return new PricingResult(
@@ -435,6 +443,7 @@ public class SubscriptionPricingService {
                 normalizedSessionFee,
                 normalizedIdleFee,
                 normalizedTaxes,
+                grossSubtotal,
                 eligibleSubtotal,
                 totalFeeDiscountAmount,
                 sessionFeeDiscountAmount,
@@ -481,6 +490,15 @@ public class SubscriptionPricingService {
         return remainingQuota.subtract(quotaConsumedValue == null ? BigDecimal.ZERO : quotaConsumedValue).max(BigDecimal.ZERO).intValue();
     }
 
+
+    private BigDecimal remainingQuotaValueAfterUse(SubscriptionAllocation allocation, BigDecimal quotaConsumedValue) {
+        BigDecimal remainingQuota = allocation.getRemainingQuotaValue();
+        if (remainingQuota == null) {
+            return null;
+        }
+        return remainingQuota.subtract(quotaConsumedValue == null ? BigDecimal.ZERO : quotaConsumedValue)
+                .max(BigDecimal.ZERO).setScale(4, RoundingMode.HALF_UP);
+    }
     /**
      * Executes money for `SubscriptionPricingService`.
      *
@@ -530,7 +548,7 @@ public class SubscriptionPricingService {
                 ? BigDecimal.ZERO
                 : coveredEnergy.divide(energyKwh, 8, RoundingMode.HALF_UP);
         BigDecimal benefitAmount = money(pricingResult.totalDiscountAmount().multiply(coverageRatio));
-        BigDecimal grossAmount = money(pricingResult.eligibleSubtotal().add(pricingResult.taxes()));
+        BigDecimal grossAmount = money(pricingResult.grossSubtotal().add(pricingResult.taxes()));
         BigDecimal netAmount = money(grossAmount.subtract(benefitAmount));
         BigDecimal regularAmount = money(netAmount);
         boolean quotaExhausted = remaining != null && remaining.subtract(quotaConsumed).compareTo(BigDecimal.ZERO) <= 0;
@@ -578,6 +596,7 @@ public class SubscriptionPricingService {
             BigDecimal sessionFee,
             BigDecimal idleFee,
             BigDecimal taxes,
+            BigDecimal grossSubtotal,
             BigDecimal eligibleSubtotal,
             BigDecimal totalFeeDiscountAmount,
             BigDecimal sessionFeeDiscountAmount,

@@ -125,6 +125,43 @@ class SubscriptionPricingServiceTest {
         assertThat(response.remainingQuotaAfterUse()).isEqualTo(8);
     }
 
+    @Test
+    void kwhPlanDiscountsOnlyCoveredEnergyAndExcludesTimeIdleFeesAndTaxes() {
+        OffsetDateTime now = OffsetDateTime.now();
+        SubscriptionPlan plan = new SubscriptionPlan(
+                UUID.randomUUID(), "NEW_USER_20_OFF_500KWH_1Y", "New driver energy benefit",
+                "20% off covered charging energy", "USD", DiscountType.PERCENTAGE, new BigDecimal("20"),
+                DiscountType.NONE, BigDecimal.ZERO, 500,
+                com.electrahub.subscription.domain.PlanVisibility.PUBLIC,
+                com.electrahub.subscription.domain.PlanCategory.DRIVER_PUBLIC,
+                com.electrahub.subscription.domain.PricingModel.FREE,
+                com.electrahub.subscription.domain.BenefitDisplayMode.DISCOUNT,
+                com.electrahub.subscription.domain.QuotaUnit.KWH,
+                new BigDecimal("500"), null, 365, null, "US", 1, false, "test", true, now
+        );
+        SubscriptionAllocation allocation = new SubscriptionAllocation(
+                UUID.randomUUID(), plan, AllocationType.USER, UUID.randomUUID(), null, null, null,
+                now.minusDays(1), now.plusDays(365), AllocationStatus.ACTIVE, "tester", now
+        );
+        allocationStore.allocations = List.of(allocation);
+
+        SubscriptionUtilizationPreviewResponse response = subscriptionPricingService.preview(
+                new PreviewSubscriptionUtilizationRequest(
+                        allocation.getId(), allocation.getUserId(), null, null, "energy-only-session",
+                        new BigDecimal("0.3410"), new BigDecimal("0.2000"), new BigDecimal("2.0000"),
+                        new BigDecimal("0.2000"), 2, new BigDecimal("1.1000"), new BigDecimal("1.0800")
+                )
+        );
+
+        assertThat(response.eligibleSubtotal()).isEqualByComparingTo("0.3410");
+        assertThat(response.totalFeeDiscountAmount()).isEqualByComparingTo("0.0682");
+        assertThat(response.sessionFeeDiscountAmount()).isZero();
+        assertThat(response.benefitAmount()).isEqualByComparingTo("0.0670");
+        assertThat(response.grossAmount()).isEqualByComparingTo("2.7410");
+        assertThat(response.netAmount()).isEqualByComparingTo("2.6740");
+        assertThat(response.coveredEnergyKwh()).isEqualByComparingTo("1.0800");
+    }
+
     /**
      * Executes record consumes quota and persists utilization for `SubscriptionPricingServiceTest`.
      *

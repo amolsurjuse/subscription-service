@@ -40,6 +40,9 @@ public record SubscriptionUtilizationPreviewResponse(
         boolean quotaExhausted,
         PricingModel pricingModel,
         BenefitDisplayMode benefitDisplayMode,
-        Integer remainingQuotaAfterUse
+        Integer remainingQuotaAfterUse,
+        com.electrahub.subscription.domain.DiscountType energyDiscountType,
+        BigDecimal energyDiscountValue,
+        BigDecimal remainingQuotaValueAfterUse
 ) {
 }
