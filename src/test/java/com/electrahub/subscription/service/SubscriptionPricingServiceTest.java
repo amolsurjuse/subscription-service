@@ -436,7 +436,7 @@ class SubscriptionPricingServiceTest {
                     SubscriptionAllocationRepository.class.getClassLoader(),
                     new Class[]{SubscriptionAllocationRepository.class},
                     (proxy, method, args) -> switch (method.getName()) {
-                        case "findAllWithPlan" -> allocations;
+                        case "findAllWithPlan", "findActiveAllocationsForTarget" -> allocations;
                         case "findDetailedById" -> findById((UUID) args[0]);
                         case "toString" -> "InMemoryAllocationRepository";
                         default -> throw new UnsupportedOperationException(method.getName());

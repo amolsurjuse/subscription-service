@@ -74,7 +74,12 @@ public class SubscriptionPricingService {
                 request.userId(),
                 request.organizationId(),
                 request.groupId(),
-                units
+                units,
+                request.chargerId(),
+                request.locationId(),
+                request.networkId(),
+                request.chargerEnterpriseId(),
+                request.countryCode()
         );
         PricingResult pricingResult = calculatePricing(
                 allocation.getPlan(),
@@ -142,7 +147,12 @@ public class SubscriptionPricingService {
                 request.userId(),
                 request.organizationId(),
                 request.groupId(),
-                units
+                units,
+                request.chargerId(),
+                request.locationId(),
+                request.networkId(),
+                request.chargerEnterpriseId(),
+                request.countryCode()
         );
         PricingResult pricingResult = calculatePricing(
                 allocation.getPlan(),
@@ -154,6 +164,7 @@ public class SubscriptionPricingService {
         CoverageResult coverage = calculateCoverage(allocation, pricingResult, energyKwh, request.quotaConsumedValue());
 
         allocation.incrementConsumedValue(coverage.quotaConsumedValue());
+        allocation.recordChargingContext(request.chargerId(), request.locationId(), request.networkId());
         Integer remainingQuota = allocation.getRemainingQuota();
 
         SubscriptionUtilization utilization = new SubscriptionUtilization(
@@ -325,10 +336,15 @@ public class SubscriptionPricingService {
                                                      UUID userId,
                                                      UUID organizationId,
                                                      UUID groupId,
-                                                     int units) {
+                                                     int units,
+                                                     String chargerId,
+                                                     String locationId,
+                                                     String networkId,
+                                                     String chargerEnterpriseId,
+                                                     String countryCode) {
         SubscriptionAllocation allocation = allocationId != null
                 ? subscriptionAllocationService.requireAllocation(allocationId)
-                : resolveBestAllocation(userId, organizationId, groupId);
+                : resolveBestAllocation(userId, organizationId, groupId, chargerId, locationId, networkId, chargerEnterpriseId, countryCode);
 
         OffsetDateTime now = OffsetDateTime.now();
         if (!allocation.isActiveAt(now)) {
@@ -337,6 +353,10 @@ public class SubscriptionPricingService {
 
         if (!matchesTarget(allocation, userId, organizationId, groupId)) {
             throw new IllegalArgumentException("Requested target does not match the subscription allocation");
+        }
+
+        if (!matchesChargingScope(allocation, chargerId, locationId, networkId, chargerEnterpriseId, countryCode)) {
+            throw new IllegalArgumentException("Charging context does not match the subscription allocation scope");
         }
 
         Integer remainingQuota = allocation.getRemainingQuota();
@@ -357,11 +377,14 @@ public class SubscriptionPricingService {
      * @param groupId input consumed by resolveBestAllocation.
      * @return result produced by resolveBestAllocation.
      */
-    private SubscriptionAllocation resolveBestAllocation(UUID userId, UUID organizationId, UUID groupId) {
+    private SubscriptionAllocation resolveBestAllocation(UUID userId, UUID organizationId, UUID groupId,
+                                                          String chargerId, String locationId, String networkId,
+                                                          String chargerEnterpriseId, String countryCode) {
         OffsetDateTime now = OffsetDateTime.now();
-        return subscriptionAllocationRepository.findAllWithPlan().stream()
-                .filter(allocation -> allocation.isActiveAt(now))
+        return subscriptionAllocationRepository.findActiveAllocationsForTarget(userId, organizationId, groupId, now).stream()
                 .filter(allocation -> matchesTarget(allocation, userId, organizationId, groupId))
+                .filter(allocation -> allocation.getAutoApplyPolicy() == com.electrahub.subscription.domain.AutoApplyPolicy.AUTO_APPLY)
+                .filter(allocation -> matchesChargingScope(allocation, chargerId, locationId, networkId, chargerEnterpriseId, countryCode))
                 .sorted(Comparator
                         .comparingInt(this::priority)
                         .thenComparing(SubscriptionAllocation::getStartsAt, Comparator.reverseOrder()))
@@ -389,6 +412,29 @@ public class SubscriptionPricingService {
                     && organizationId.equals(allocation.getOrganizationId())
                     && groupId.equals(allocation.getGroupId());
         };
+    }
+
+    private boolean matchesChargingScope(SubscriptionAllocation allocation,
+                                         String chargerId,
+                                         String locationId,
+                                         String networkId,
+                                         String chargerEnterpriseId,
+                                         String countryCode) {
+        String reference = normalizeOptionalText(allocation.getChargingScopeReference());
+        return switch (allocation.getChargingScopeType()) {
+            case ALL_CHARGERS -> true;
+            case CHARGER -> equalsIgnoreCase(reference, chargerId);
+            case LOCATION -> equalsIgnoreCase(reference, locationId);
+            case NETWORK -> equalsIgnoreCase(reference, networkId);
+            case ENTERPRISE -> equalsIgnoreCase(reference, chargerEnterpriseId);
+            case COUNTRY -> equalsIgnoreCase(reference, countryCode);
+            case CHARGER_GROUP -> false;
+        };
+    }
+
+    private boolean equalsIgnoreCase(String expected, String actual) {
+        String normalizedActual = normalizeOptionalText(actual);
+        return expected != null && normalizedActual != null && expected.equalsIgnoreCase(normalizedActual);
     }
 
     /**

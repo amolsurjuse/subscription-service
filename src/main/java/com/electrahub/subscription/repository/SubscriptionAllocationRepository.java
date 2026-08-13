@@ -37,6 +37,34 @@ public interface SubscriptionAllocationRepository extends JpaRepository<Subscrip
     @Query("select a from SubscriptionAllocation a join fetch a.plan where a.id = :allocationId")
     Optional<SubscriptionAllocation> findDetailedById(UUID allocationId);
 
+    @Query("""
+            select a from SubscriptionAllocation a join fetch a.plan p
+            where a.userId = :userId
+              and a.status = com.electrahub.subscription.domain.AllocationStatus.ACTIVE
+              and a.startsAt <= :now
+              and (a.endsAt is null or a.endsAt >= :now)
+              and p.active = true
+            """)
+    List<SubscriptionAllocation> findActiveUserAllocations(UUID userId, OffsetDateTime now);
+
+    @Query("""
+            select distinct a from SubscriptionAllocation a join fetch a.plan p
+            where (
+                    (a.allocationType = com.electrahub.subscription.domain.AllocationType.USER and a.userId = :userId)
+                 or (a.allocationType = com.electrahub.subscription.domain.AllocationType.ORGANIZATION and a.organizationId = :organizationId)
+                 or (a.allocationType = com.electrahub.subscription.domain.AllocationType.ORGANIZATION_GROUP
+                     and a.organizationId = :organizationId and a.groupId = :groupId)
+            )
+              and a.status = com.electrahub.subscription.domain.AllocationStatus.ACTIVE
+              and a.startsAt <= :now
+              and (a.endsAt is null or a.endsAt >= :now)
+              and p.active = true
+            """)
+    List<SubscriptionAllocation> findActiveAllocationsForTarget(UUID userId,
+                                                                 UUID organizationId,
+                                                                 UUID groupId,
+                                                                 OffsetDateTime now);
+
     @Query(
             value = """
                     select a from SubscriptionAllocation a

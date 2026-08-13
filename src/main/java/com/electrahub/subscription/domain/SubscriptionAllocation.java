@@ -91,6 +91,33 @@ public class SubscriptionAllocation {
     @Column(name = "last_used_at")
     private OffsetDateTime lastUsedAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "beneficiary_type", nullable = false, length = 32)
+    private BeneficiaryType beneficiaryType = BeneficiaryType.USER;
+
+    @Column(name = "beneficiary_reference", length = 128)
+    private String beneficiaryReference;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "charging_scope_type", nullable = false, length = 32)
+    private ChargingScopeType chargingScopeType = ChargingScopeType.ALL_CHARGERS;
+
+    @Column(name = "charging_scope_reference", length = 128)
+    private String chargingScopeReference;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "auto_apply_policy", nullable = false, length = 32)
+    private AutoApplyPolicy autoApplyPolicy = AutoApplyPolicy.AUTO_APPLY;
+
+    @Column(name = "last_used_charger_id", length = 128)
+    private String lastUsedChargerId;
+
+    @Column(name = "last_used_location_id", length = 128)
+    private String lastUsedLocationId;
+
+    @Column(name = "last_used_network_id", length = 128)
+    private String lastUsedNetworkId;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -185,6 +212,11 @@ public class SubscriptionAllocation {
         this.externalReference = externalReference;
         this.vin = vin;
         this.enterpriseId = enterpriseId;
+        this.beneficiaryType = allocationType == AllocationType.USER
+                ? BeneficiaryType.USER
+                : allocationType == AllocationType.ORGANIZATION_GROUP ? BeneficiaryType.USER_GROUP : BeneficiaryType.ENTERPRISE;
+        this.beneficiaryReference = userId != null ? userId.toString()
+                : groupId != null ? groupId.toString() : organizationId == null ? null : organizationId.toString();
         this.createdAt = now;
         this.updatedAt = now;
     }
@@ -369,6 +401,40 @@ public class SubscriptionAllocation {
 
     public OffsetDateTime getLastUsedAt() {
         return lastUsedAt;
+    }
+
+    public BeneficiaryType getBeneficiaryType() { return beneficiaryType; }
+    public String getBeneficiaryReference() { return beneficiaryReference; }
+    public ChargingScopeType getChargingScopeType() { return chargingScopeType; }
+    public String getChargingScopeReference() { return chargingScopeReference; }
+    public AutoApplyPolicy getAutoApplyPolicy() { return autoApplyPolicy; }
+    public String getLastUsedChargerId() { return lastUsedChargerId; }
+    public String getLastUsedLocationId() { return lastUsedLocationId; }
+    public String getLastUsedNetworkId() { return lastUsedNetworkId; }
+
+    public void configureEligibility(BeneficiaryType beneficiaryType,
+                                     String beneficiaryReference,
+                                     ChargingScopeType chargingScopeType,
+                                     String chargingScopeReference,
+                                     AutoApplyPolicy autoApplyPolicy) {
+        this.beneficiaryType = beneficiaryType == null ? this.beneficiaryType : beneficiaryType;
+        this.beneficiaryReference = beneficiaryReference == null || beneficiaryReference.isBlank()
+                ? this.beneficiaryReference : beneficiaryReference.trim();
+        this.chargingScopeType = chargingScopeType == null ? ChargingScopeType.ALL_CHARGERS : chargingScopeType;
+        this.chargingScopeReference = chargingScopeReference == null || chargingScopeReference.isBlank()
+                ? null : chargingScopeReference.trim();
+        this.autoApplyPolicy = autoApplyPolicy == null ? AutoApplyPolicy.AUTO_APPLY : autoApplyPolicy;
+    }
+
+    public void recordChargingContext(String chargerId, String locationId, String networkId) {
+        this.lastUsedChargerId = normalizeContext(chargerId);
+        this.lastUsedLocationId = normalizeContext(locationId);
+        this.lastUsedNetworkId = normalizeContext(networkId);
+        this.lastUsedAt = OffsetDateTime.now();
+    }
+
+    private String normalizeContext(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     /**

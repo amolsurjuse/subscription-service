@@ -23,8 +23,32 @@ public record RecordSubscriptionUtilizationRequest(
         @Positive BigDecimal energyKwh,
         @Positive BigDecimal quotaConsumedValue,
         @Size(max = 512) String note,
-        @NotBlank String actor
+        @NotBlank String actor,
+        @Size(max = 128) String chargerId,
+        @Size(max = 128) String locationId,
+        @Size(max = 128) String networkId,
+        @Size(max = 128) String chargerEnterpriseId,
+        @Size(max = 2) String countryCode
 ) {
+    public RecordSubscriptionUtilizationRequest(UUID allocationId,
+                                                UUID userId,
+                                                UUID organizationId,
+                                                UUID groupId,
+                                                String sessionReference,
+                                                BigDecimal chargingCost,
+                                                BigDecimal sessionFee,
+                                                BigDecimal idleFee,
+                                                BigDecimal taxes,
+                                                Integer unitsConsumed,
+                                                BigDecimal energyKwh,
+                                                BigDecimal quotaConsumedValue,
+                                                String note,
+                                                String actor) {
+        this(allocationId, userId, organizationId, groupId, sessionReference, chargingCost, sessionFee,
+                idleFee, taxes, unitsConsumed, energyKwh, quotaConsumedValue, note, actor,
+                null, null, null, null, null);
+    }
+
     public RecordSubscriptionUtilizationRequest(UUID allocationId,
                                                 UUID userId,
                                                 UUID organizationId,
@@ -51,7 +75,12 @@ public record RecordSubscriptionUtilizationRequest(
                 null,
                 null,
                 note,
-                actor
+                actor,
+                null,
+                null,
+                null,
+                null,
+                null
         );
     }
 }

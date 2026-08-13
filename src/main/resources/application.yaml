@@ -20,11 +20,20 @@ spring:
         default_schema: ${SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA:subscription_mgmt}
         jdbc:
           time_zone: UTC
+  data:
+    redis:
+      host: ${ENV_REDIS_HOST:localhost}
+      port: ${ENV_REDIS_PORT:6379}
+      password: ${ENV_REDIS_PASSWORD:}
+      timeout: ${ENV_REDIS_TIMEOUT:500ms}
 
 server:
   port: ${SERVER_PORT:8086}
 
 app:
+  eligibility-cache:
+    ttl: ${SUBSCRIPTION_ELIGIBILITY_CACHE_TTL:30s}
+    jitter: ${SUBSCRIPTION_ELIGIBILITY_CACHE_JITTER:3s}
   cors:
     allowed-origin-patterns: ${APP_CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:4200,http://localhost:4201,http://localhost:4211,http://localhost:8080,https://dev.electrahub.com,https://dev.electrahub.com:8443,http://driver-portal-dev.electrahub.com:8080,https://driver-portal-dev.electrahub.com:8443,https://driver-portal-*.electrahub.com,https://driver-portal-*.electrahub.com:*,https://admin-portal-dev.electrahub.com,https://admin-portal-dev.electrahub.com:8443,https://admin-portal-*.electrahub.com,https://admin-portal-*.electrahub.com:*}
 

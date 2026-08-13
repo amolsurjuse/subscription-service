@@ -1,0 +1,44 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0006-add-eligibility-scope
+      author: codex
+      changes:
+        - addColumn:
+            schemaName: subscription_mgmt
+            tableName: subscription_allocations
+            columns:
+              - column: { name: beneficiary_type, type: VARCHAR(32), defaultValue: USER, constraints: { nullable: false } }
+              - column: { name: beneficiary_reference, type: VARCHAR(128) }
+              - column: { name: charging_scope_type, type: VARCHAR(32), defaultValue: ALL_CHARGERS, constraints: { nullable: false } }
+              - column: { name: charging_scope_reference, type: VARCHAR(128) }
+              - column: { name: auto_apply_policy, type: VARCHAR(32), defaultValue: AUTO_APPLY, constraints: { nullable: false } }
+              - column: { name: last_used_charger_id, type: VARCHAR(128) }
+              - column: { name: last_used_location_id, type: VARCHAR(128) }
+              - column: { name: last_used_network_id, type: VARCHAR(128) }
+        - sql:
+            sql: |
+              UPDATE subscription_mgmt.subscription_allocations
+                 SET beneficiary_type = CASE allocation_type
+                       WHEN 'USER' THEN 'USER'
+                       WHEN 'ORGANIZATION_GROUP' THEN 'USER_GROUP'
+                       ELSE 'ENTERPRISE'
+                     END,
+                     beneficiary_reference = COALESCE(user_id::text, group_id::text, organization_id::text),
+                     charging_scope_type = 'ALL_CHARGERS',
+                     auto_apply_policy = 'AUTO_APPLY';
+        - createIndex:
+            schemaName: subscription_mgmt
+            tableName: subscription_allocations
+            indexName: idx_subscription_allocation_beneficiary
+            columns:
+              - column: { name: beneficiary_type }
+              - column: { name: beneficiary_reference }
+              - column: { name: status }
+        - createIndex:
+            schemaName: subscription_mgmt
+            tableName: subscription_allocations
+            indexName: idx_subscription_allocation_charging_scope
+            columns:
+              - column: { name: charging_scope_type }
+              - column: { name: charging_scope_reference }
+              - column: { name: status }

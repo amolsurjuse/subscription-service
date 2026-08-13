@@ -20,8 +20,30 @@ public record PreviewSubscriptionUtilizationRequest(
         @NotNull @PositiveOrZero BigDecimal taxes,
         @Positive Integer unitsConsumed,
         @Positive BigDecimal energyKwh,
-        @Positive BigDecimal quotaConsumedValue
+        @Positive BigDecimal quotaConsumedValue,
+        @Size(max = 128) String chargerId,
+        @Size(max = 128) String locationId,
+        @Size(max = 128) String networkId,
+        @Size(max = 128) String chargerEnterpriseId,
+        @Size(max = 2) String countryCode
 ) {
+    public PreviewSubscriptionUtilizationRequest(UUID allocationId,
+                                                 UUID userId,
+                                                 UUID organizationId,
+                                                 UUID groupId,
+                                                 String sessionReference,
+                                                 BigDecimal chargingCost,
+                                                 BigDecimal sessionFee,
+                                                 BigDecimal idleFee,
+                                                 BigDecimal taxes,
+                                                 Integer unitsConsumed,
+                                                 BigDecimal energyKwh,
+                                                 BigDecimal quotaConsumedValue) {
+        this(allocationId, userId, organizationId, groupId, sessionReference, chargingCost, sessionFee,
+                idleFee, taxes, unitsConsumed, energyKwh, quotaConsumedValue,
+                null, null, null, null, null);
+    }
+
     public PreviewSubscriptionUtilizationRequest(UUID allocationId,
                                                  UUID userId,
                                                  UUID organizationId,
@@ -43,6 +65,11 @@ public record PreviewSubscriptionUtilizationRequest(
                 idleFee,
                 taxes,
                 unitsConsumed,
+                null,
+                null,
+                null,
+                null,
+                null,
                 null,
                 null
         );

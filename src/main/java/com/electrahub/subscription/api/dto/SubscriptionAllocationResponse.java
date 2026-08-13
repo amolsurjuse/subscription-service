@@ -6,6 +6,9 @@ import com.electrahub.subscription.domain.AllocationType;
 import com.electrahub.subscription.domain.BenefitDisplayMode;
 import com.electrahub.subscription.domain.PricingModel;
 import com.electrahub.subscription.domain.QuotaUnit;
+import com.electrahub.subscription.domain.AutoApplyPolicy;
+import com.electrahub.subscription.domain.BeneficiaryType;
+import com.electrahub.subscription.domain.ChargingScopeType;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -42,6 +45,14 @@ public record SubscriptionAllocationResponse(
         String externalReference,
         String vin,
         UUID enterpriseId,
+        BeneficiaryType beneficiaryType,
+        String beneficiaryReference,
+        ChargingScopeType chargingScopeType,
+        String chargingScopeReference,
+        AutoApplyPolicy autoApplyPolicy,
+        String lastUsedChargerId,
+        String lastUsedLocationId,
+        String lastUsedNetworkId,
         OffsetDateTime lastUsedAt,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt

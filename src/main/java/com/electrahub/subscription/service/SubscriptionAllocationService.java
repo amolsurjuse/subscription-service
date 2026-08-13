@@ -11,12 +11,14 @@ import com.electrahub.subscription.api.dto.SubscriptionAllocationResponse;
 import com.electrahub.subscription.api.dto.SubscriptionPlanResponse;
 import com.electrahub.subscription.api.dto.UpdateAllocationStatusRequest;
 import com.electrahub.subscription.api.error.NotFoundException;
+import com.electrahub.subscription.api.error.ConflictException;
 import com.electrahub.subscription.domain.AllocationStatus;
 import com.electrahub.subscription.domain.AllocationSource;
 import com.electrahub.subscription.domain.AllocationType;
 import com.electrahub.subscription.domain.AuditAction;
 import com.electrahub.subscription.domain.PlanCategory;
 import com.electrahub.subscription.domain.PlanVisibility;
+import com.electrahub.subscription.domain.PricingModel;
 import com.electrahub.subscription.domain.SubscriptionAllocation;
 import com.electrahub.subscription.domain.SubscriptionPlan;
 import com.electrahub.subscription.repository.SubscriptionAllocationRepository;
@@ -92,6 +94,10 @@ public class SubscriptionAllocationService {
                 request.enterpriseId(),
                 now
         );
+        allocation.configureEligibility(
+                request.beneficiaryType(), request.beneficiaryReference(), request.chargingScopeType(),
+                request.chargingScopeReference(), request.autoApplyPolicy()
+        );
         subscriptionAllocationRepository.save(allocation);
 
         subscriptionAuditService.record(
@@ -149,6 +155,13 @@ public class SubscriptionAllocationService {
                 normalizeOptionalText(request.vin()),
                 request.enterpriseId() != null ? request.enterpriseId() : plan.getEnterpriseId(),
                 now
+        );
+        allocation.configureEligibility(
+                request.beneficiaryType(),
+                request.beneficiaryReference(),
+                request.chargingScopeType(),
+                request.chargingScopeReference(),
+                request.autoApplyPolicy()
         );
         subscriptionAllocationRepository.save(allocation);
 
@@ -282,6 +295,45 @@ public class SubscriptionAllocationService {
     }
 
     @Transactional
+    public DriverSubscriptionResponse selfSubscribe(UUID userId, UUID planId) {
+        SubscriptionPlan plan = subscriptionPlanService.requirePlan(planId);
+        if (!plan.isActive()
+                || plan.getVisibility() != PlanVisibility.PUBLIC
+                || plan.getPlanCategory() != PlanCategory.DRIVER_PUBLIC) {
+            throw new NotFoundException("Public subscription plan not found: " + planId);
+        }
+        if (plan.getPricingModel() != PricingModel.FREE) {
+            throw new ConflictException("Paid subscriptions require a completed payment checkout.");
+        }
+
+        OffsetDateTime now = OffsetDateTime.now();
+        boolean alreadySubscribed = subscriptionAllocationRepository.findActiveUserAllocations(userId, now).stream()
+                .anyMatch(allocation -> planId.equals(allocation.getPlan().getId()));
+        if (alreadySubscribed) {
+            throw new ConflictException("User already has an active allocation for this subscription plan.");
+        }
+
+        BigDecimal quota = plan.getEffectiveDefaultQuotaValue();
+        if (quota == null || quota.signum() <= 0) {
+            throw new ConflictException("Subscription plan has no usable quota configured.");
+        }
+        OffsetDateTime endsAt = plan.getValidityDays() == null ? null : now.plusDays(plan.getValidityDays());
+        SubscriptionAllocation allocation = new SubscriptionAllocation(
+                UUID.randomUUID(), plan, AllocationType.USER, userId, null, null,
+                quota.intValue(), quota, now, endsAt, AllocationStatus.ACTIVE,
+                userId.toString(), AllocationSource.SELF_SUBSCRIBED, "Driver self-subscription",
+                "Subscribed from public subscription list", null, null, plan.getEnterpriseId(), now
+        );
+        subscriptionAllocationRepository.save(allocation);
+        subscriptionAuditService.record(
+                plan.getId(), allocation.getId(), userId, null, null,
+                AuditAction.DRIVER_SUBSCRIBED, userId.toString(),
+                "Driver subscribed to public plan " + plan.getCode()
+        );
+        return toDriverResponse(allocation);
+    }
+
+    @Transactional
     public SubscriptionAllocation ensureNewUserPromotion(UUID userId) {
         if (userId == null) {
             return null;
@@ -384,6 +436,14 @@ public class SubscriptionAllocationService {
                 allocation.getExternalReference(),
                 allocation.getVin(),
                 allocation.getEnterpriseId(),
+                allocation.getBeneficiaryType(),
+                allocation.getBeneficiaryReference(),
+                allocation.getChargingScopeType(),
+                allocation.getChargingScopeReference(),
+                allocation.getAutoApplyPolicy(),
+                allocation.getLastUsedChargerId(),
+                allocation.getLastUsedLocationId(),
+                allocation.getLastUsedNetworkId(),
                 allocation.getLastUsedAt(),
                 allocation.getCreatedAt(),
                 allocation.getUpdatedAt()
