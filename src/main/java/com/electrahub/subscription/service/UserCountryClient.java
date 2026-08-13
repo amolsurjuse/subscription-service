@@ -17,10 +17,9 @@ public class UserCountryClient {
     private final RestClient restClient;
 
     public UserCountryClient(
-            RestClient.Builder restClientBuilder,
             @Value("${app.services.user.url:http://user-service:8082}") String userServiceUrl
     ) {
-        this.restClient = restClientBuilder.baseUrl(userServiceUrl).build();
+        this.restClient = RestClient.create(userServiceUrl);
     }
 
     public String requireCountry(UUID userId) {
