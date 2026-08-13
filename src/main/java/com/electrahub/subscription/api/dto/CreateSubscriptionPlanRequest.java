@@ -34,7 +34,7 @@ public record CreateSubscriptionPlanRequest(
         @PositiveOrZero BigDecimal subscriptionPriceAmount,
         @Positive Integer validityDays,
         UUID enterpriseId,
-        @Size(min = 2, max = 2) String countryCode,
+        @NotBlank @Size(min = 2, max = 2) String countryCode,
         Integer publicSortOrder,
         Boolean allowStacking,
         @Size(max = 100) String createdBy,

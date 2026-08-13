@@ -30,6 +30,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class SubscriptionPricingServiceTest {
     private static final Logger LOGGER = LoggerFactory.getLogger(SubscriptionPricingServiceTest.class);
@@ -58,11 +61,14 @@ class SubscriptionPricingServiceTest {
         SubscriptionPlanRepository planRepository = createPlanRepository();
         SubscriptionUtilizationRepository utilizationRepository = utilizationStore.createRepository();
         SubscriptionAuditService auditService = new SubscriptionAuditService(auditStore.createRepository());
+        UserCountryClient userCountryClient = mock(UserCountryClient.class);
+        when(userCountryClient.requireCountry(any())).thenReturn("US");
 
         SubscriptionAllocationService subscriptionAllocationService = new SubscriptionAllocationService(
                 allocationRepository,
                 null,
-                auditService
+                auditService,
+                userCountryClient
         ) {
             @Override
             public SubscriptionAllocation requireAllocation(UUID allocationId) {
@@ -74,7 +80,8 @@ class SubscriptionPricingServiceTest {
                 allocationRepository,
                 utilizationRepository,
                 subscriptionAllocationService,
-                auditService
+                auditService,
+                userCountryClient
         );
     }
 
@@ -149,7 +156,8 @@ class SubscriptionPricingServiceTest {
                 new PreviewSubscriptionUtilizationRequest(
                         allocation.getId(), allocation.getUserId(), null, null, "energy-only-session",
                         new BigDecimal("0.3410"), new BigDecimal("0.2000"), new BigDecimal("2.0000"),
-                        new BigDecimal("0.2000"), 2, new BigDecimal("1.1000"), new BigDecimal("1.0800")
+                        new BigDecimal("0.2000"), 2, new BigDecimal("1.1000"), new BigDecimal("1.0800"),
+                        null, null, null, null, "US"
                 )
         );
 
@@ -189,7 +197,8 @@ class SubscriptionPricingServiceTest {
                 new PreviewSubscriptionUtilizationRequest(
                         allocation.getId(), allocation.getUserId(), null, null, "free-session",
                         new BigDecimal("12.00"), new BigDecimal("1.50"), new BigDecimal("2.00"),
-                        new BigDecimal("0.75"), 10, new BigDecimal("10"), new BigDecimal("10")
+                        new BigDecimal("0.75"), 10, new BigDecimal("10"), new BigDecimal("10"),
+                        null, null, null, null, "US"
                 )
         );
 

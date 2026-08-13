@@ -84,7 +84,8 @@ public class DriverSubscriptionController {
             HttpServletRequest request
     ) {
         requireCustomer(request);
-        return subscriptionAllocationService.listDriverPlans(countryCode, currency, limit, offset);
+        UUID userId = UUID.fromString(accountContextResolver.resolveAccountId(request));
+        return subscriptionAllocationService.listDriverPlans(userId, countryCode, currency, limit, offset);
     }
 
     private void requireCustomer(HttpServletRequest request) {

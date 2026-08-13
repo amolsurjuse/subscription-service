@@ -30,17 +30,20 @@ public class SubscriptionEligibilityService {
     private static final TypeReference<List<EligibleSubscriptionResponse>> RESPONSE_TYPE = new TypeReference<>() {};
 
     private final SubscriptionAllocationRepository repository;
+    private final UserCountryClient userCountryClient;
     private final StringRedisTemplate redis;
     private final ObjectMapper objectMapper;
     private final Duration ttl;
     private final Duration jitter;
 
     public SubscriptionEligibilityService(SubscriptionAllocationRepository repository,
+                                          UserCountryClient userCountryClient,
                                           ObjectProvider<StringRedisTemplate> redisProvider,
                                           ObjectProvider<ObjectMapper> objectMapperProvider,
                                           @Value("${app.eligibility-cache.ttl:30s}") Duration ttl,
                                           @Value("${app.eligibility-cache.jitter:3s}") Duration jitter) {
         this.repository = repository;
+        this.userCountryClient = userCountryClient;
         this.redis = redisProvider.getIfAvailable();
         this.objectMapper = objectMapperProvider.getIfAvailable(
                 () -> new ObjectMapper().findAndRegisterModules()
@@ -57,7 +60,8 @@ public class SubscriptionEligibilityService {
                                                             String enterpriseId,
                                                             String countryCode,
                                                             boolean plugAndCharge) {
-        String key = cacheKey(userId, chargerId, locationId, networkId, enterpriseId, countryCode, String.valueOf(plugAndCharge));
+        String driverCountry = userCountryClient.requireCountry(userId);
+        String key = cacheKey(userId, driverCountry, chargerId, locationId, networkId, enterpriseId, countryCode, String.valueOf(plugAndCharge));
         List<EligibleSubscriptionResponse> cached = readCache(key);
         if (cached != null) {
             return cached;
@@ -67,6 +71,8 @@ public class SubscriptionEligibilityService {
         List<SubscriptionAllocation> matches = repository.findActiveUserAllocations(userId, now).stream()
                 .filter(allocation -> allocation.getRemainingQuotaValue() == null
                         || allocation.getRemainingQuotaValue().signum() > 0)
+                .filter(allocation -> UserCountryClient.matchesPlanCountry(allocation.getPlan().getCountryCode(), driverCountry))
+                .filter(allocation -> UserCountryClient.matchesPlanCountry(allocation.getPlan().getCountryCode(), countryCode))
                 .filter(allocation -> matchesScope(allocation, chargerId, locationId, networkId, enterpriseId, countryCode))
                 .sorted(Comparator
                         .comparing((SubscriptionAllocation allocation) -> recommendationRank(allocation, chargerId, locationId, networkId))

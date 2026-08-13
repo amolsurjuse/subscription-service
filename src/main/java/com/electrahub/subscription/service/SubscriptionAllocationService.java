@@ -42,13 +42,16 @@ public class SubscriptionAllocationService {
     private final SubscriptionAllocationRepository subscriptionAllocationRepository;
     private final SubscriptionPlanService subscriptionPlanService;
     private final SubscriptionAuditService subscriptionAuditService;
+    private final UserCountryClient userCountryClient;
 
     public SubscriptionAllocationService(SubscriptionAllocationRepository subscriptionAllocationRepository,
                                          SubscriptionPlanService subscriptionPlanService,
-                                         SubscriptionAuditService subscriptionAuditService) {
+                                         SubscriptionAuditService subscriptionAuditService,
+                                         UserCountryClient userCountryClient) {
         this.subscriptionAllocationRepository = subscriptionAllocationRepository;
         this.subscriptionPlanService = subscriptionPlanService;
         this.subscriptionAuditService = subscriptionAuditService;
+        this.userCountryClient = userCountryClient;
     }
 
     /**
@@ -253,12 +256,14 @@ public class SubscriptionAllocationService {
                                                                     int limit,
                                                                     int offset) {
         ensureNewUserPromotion(userId);
+        String driverCountry = userCountryClient.requireCountry(userId);
         int safeLimit = Math.max(1, Math.min(limit, 100));
         int safeOffset = Math.max(0, offset);
         OffsetDateTime now = OffsetDateTime.now();
 
         return subscriptionAllocationRepository.findAllWithPlan().stream()
                 .filter(allocation -> userId.equals(allocation.getUserId()))
+                .filter(allocation -> UserCountryClient.matchesPlanCountry(allocation.getPlan().getCountryCode(), driverCountry))
                 .filter(allocation -> !activeOnly || allocation.isActiveAt(now))
                 .sorted(Comparator.comparing(SubscriptionAllocation::getCreatedAt).reversed())
                 .skip(safeOffset)
@@ -268,11 +273,17 @@ public class SubscriptionAllocationService {
     }
 
     @Transactional(readOnly = true)
-    public List<DriverSubscriptionPlanResponse> listDriverPlans(String countryCode,
+    public List<DriverSubscriptionPlanResponse> listDriverPlans(UUID userId,
+                                                                String countryCode,
                                                                 String currency,
                                                                 int limit,
                                                                 int offset) {
-        String normalizedCountry = normalizeOptionalText(countryCode);
+        String driverCountry = userCountryClient.requireCountry(userId);
+        String normalizedCountry = UserCountryClient.normalizeCountry(countryCode);
+        if (normalizedCountry != null && !normalizedCountry.equals(driverCountry)) {
+            return List.of();
+        }
+        normalizedCountry = driverCountry;
         String normalizedCurrency = normalizeOptionalText(currency);
         return subscriptionPlanService.list(
                         Math.max(1, Math.min(limit, 100)),
@@ -304,6 +315,9 @@ public class SubscriptionAllocationService {
         }
         if (plan.getPricingModel() != PricingModel.FREE) {
             throw new ConflictException("Paid subscriptions require a completed payment checkout.");
+        }
+        if (!UserCountryClient.matchesPlanCountry(plan.getCountryCode(), userCountryClient.requireCountry(userId))) {
+            throw new NotFoundException("Public subscription plan is not available in the user's country: " + planId);
         }
 
         OffsetDateTime now = OffsetDateTime.now();

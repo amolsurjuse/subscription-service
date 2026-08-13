@@ -44,15 +44,18 @@ public class SubscriptionPricingService {
     private final SubscriptionUtilizationRepository subscriptionUtilizationRepository;
     private final SubscriptionAllocationService subscriptionAllocationService;
     private final SubscriptionAuditService subscriptionAuditService;
+    private final UserCountryClient userCountryClient;
 
     public SubscriptionPricingService(SubscriptionAllocationRepository subscriptionAllocationRepository,
                                       SubscriptionUtilizationRepository subscriptionUtilizationRepository,
                                       SubscriptionAllocationService subscriptionAllocationService,
-                                      SubscriptionAuditService subscriptionAuditService) {
+                                      SubscriptionAuditService subscriptionAuditService,
+                                      UserCountryClient userCountryClient) {
         this.subscriptionAllocationRepository = subscriptionAllocationRepository;
         this.subscriptionUtilizationRepository = subscriptionUtilizationRepository;
         this.subscriptionAllocationService = subscriptionAllocationService;
         this.subscriptionAuditService = subscriptionAuditService;
+        this.userCountryClient = userCountryClient;
     }
 
     /**
@@ -355,6 +358,10 @@ public class SubscriptionPricingService {
             throw new IllegalArgumentException("Requested target does not match the subscription allocation");
         }
 
+        if (!matchesCountry(allocation, userId, countryCode)) {
+            throw new IllegalArgumentException("Subscription is not available for the driver and charger country");
+        }
+
         if (!matchesChargingScope(allocation, chargerId, locationId, networkId, chargerEnterpriseId, countryCode)) {
             throw new IllegalArgumentException("Charging context does not match the subscription allocation scope");
         }
@@ -381,9 +388,12 @@ public class SubscriptionPricingService {
                                                           String chargerId, String locationId, String networkId,
                                                           String chargerEnterpriseId, String countryCode) {
         OffsetDateTime now = OffsetDateTime.now();
+        String driverCountry = userId == null ? null : userCountryClient.requireCountry(userId);
         return subscriptionAllocationRepository.findActiveAllocationsForTarget(userId, organizationId, groupId, now).stream()
                 .filter(allocation -> matchesTarget(allocation, userId, organizationId, groupId))
                 .filter(allocation -> allocation.getAutoApplyPolicy() == com.electrahub.subscription.domain.AutoApplyPolicy.AUTO_APPLY)
+                .filter(allocation -> UserCountryClient.matchesPlanCountry(allocation.getPlan().getCountryCode(), driverCountry))
+                .filter(allocation -> UserCountryClient.matchesPlanCountry(allocation.getPlan().getCountryCode(), countryCode))
                 .filter(allocation -> matchesChargingScope(allocation, chargerId, locationId, networkId, chargerEnterpriseId, countryCode))
                 .sorted(Comparator
                         .comparingInt(this::priority)
@@ -412,6 +422,13 @@ public class SubscriptionPricingService {
                     && organizationId.equals(allocation.getOrganizationId())
                     && groupId.equals(allocation.getGroupId());
         };
+    }
+
+    private boolean matchesCountry(SubscriptionAllocation allocation, UUID userId, String chargerCountry) {
+        String driverCountry = userId == null ? null : userCountryClient.requireCountry(userId);
+        String planCountry = allocation.getPlan().getCountryCode();
+        return UserCountryClient.matchesPlanCountry(planCountry, driverCountry)
+                && UserCountryClient.matchesPlanCountry(planCountry, chargerCountry);
     }
 
     private boolean matchesChargingScope(SubscriptionAllocation allocation,

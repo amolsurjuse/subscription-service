@@ -1,5 +1,6 @@
 package com.electrahub.subscription.service;
 
+import com.electrahub.subscription.api.dto.EligibleSubscriptionResponse;
 import com.electrahub.subscription.domain.AllocationStatus;
 import com.electrahub.subscription.domain.AllocationType;
 import com.electrahub.subscription.domain.AutoApplyPolicy;
@@ -53,9 +54,11 @@ class SubscriptionEligibilityServiceTest {
         when(provider.getIfAvailable()).thenReturn(redis);
         ObjectProvider<ObjectMapper> mapperProvider = mock(ObjectProvider.class);
         when(mapperProvider.getIfAvailable(any())).thenReturn(new ObjectMapper().findAndRegisterModules());
+        UserCountryClient userCountryClient = mock(UserCountryClient.class);
+        when(userCountryClient.requireCountry(userId)).thenReturn("US");
 
         SubscriptionEligibilityService service = new SubscriptionEligibilityService(
-                repository, provider, mapperProvider, Duration.ofSeconds(30), Duration.ZERO
+                repository, userCountryClient, provider, mapperProvider, Duration.ofSeconds(30), Duration.ZERO
         );
 
         var result = service.findEligible(
@@ -84,9 +87,11 @@ class SubscriptionEligibilityServiceTest {
         when(provider.getIfAvailable()).thenReturn(redis);
         ObjectProvider<ObjectMapper> mapperProvider = mock(ObjectProvider.class);
         when(mapperProvider.getIfAvailable(any())).thenReturn(new ObjectMapper().findAndRegisterModules());
+        UserCountryClient userCountryClient = mock(UserCountryClient.class);
+        when(userCountryClient.requireCountry(userId)).thenReturn("US");
 
         SubscriptionEligibilityService service = new SubscriptionEligibilityService(
-                repository, provider, mapperProvider, Duration.ofSeconds(30), Duration.ZERO
+                repository, userCountryClient, provider, mapperProvider, Duration.ofSeconds(30), Duration.ZERO
         );
         assertThat(service.findEligible(userId, "charger", null, null, null, null, false)).isEmpty();
 
@@ -95,11 +100,45 @@ class SubscriptionEligibilityServiceTest {
         verify(values).set(anyString(), anyString(), any(Duration.class));
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void hidesAllocationsWhenDriverOrChargerCountryDoesNotMatchPlanCountry() {
+        UUID userId = UUID.randomUUID();
+        OffsetDateTime now = OffsetDateTime.now();
+        SubscriptionAllocation usPlan = allocation(userId, "US-PLAN", now, "US");
+        SubscriptionAllocation canadaPlan = allocation(userId, "CA-PLAN", now.plusSeconds(1), "CA");
+        SubscriptionAllocationRepository repository = mock(SubscriptionAllocationRepository.class);
+        when(repository.findActiveUserAllocations(any(), any())).thenReturn(List.of(usPlan, canadaPlan));
+        ObjectProvider<StringRedisTemplate> redisProvider = mock(ObjectProvider.class);
+        ObjectProvider<ObjectMapper> mapperProvider = mock(ObjectProvider.class);
+        when(mapperProvider.getIfAvailable(any())).thenReturn(new ObjectMapper().findAndRegisterModules());
+        UserCountryClient userCountryClient = mock(UserCountryClient.class);
+        when(userCountryClient.requireCountry(userId)).thenReturn("US");
+
+        SubscriptionEligibilityService service = new SubscriptionEligibilityService(
+                repository, userCountryClient, redisProvider, mapperProvider, Duration.ofSeconds(30), Duration.ZERO
+        );
+
+        assertThat(service.findEligible(userId, "charger", null, null, null, "US", false))
+                .extracting(EligibleSubscriptionResponse::planCode)
+                .containsExactly("US-PLAN");
+        assertThat(service.findEligible(userId, "charger", null, null, null, "CA", false)).isEmpty();
+    }
+
     private SubscriptionAllocation allocation(UUID userId, String code, OffsetDateTime createdAt) {
+        return allocation(userId, code, createdAt, "US");
+    }
+
+    private SubscriptionAllocation allocation(UUID userId, String code, OffsetDateTime createdAt, String countryCode) {
         SubscriptionPlan plan = new SubscriptionPlan(
                 UUID.randomUUID(), code, code + " plan", "Eligibility test", "USD",
-                DiscountType.PERCENTAGE, new BigDecimal("100"), DiscountType.NONE,
-                BigDecimal.ZERO, 100, true, createdAt
+                DiscountType.PERCENTAGE, new BigDecimal("100"), DiscountType.NONE, BigDecimal.ZERO, 100,
+                com.electrahub.subscription.domain.PlanVisibility.ADMIN_ONLY,
+                com.electrahub.subscription.domain.PlanCategory.DRIVER_PUBLIC,
+                com.electrahub.subscription.domain.PricingModel.FREE,
+                com.electrahub.subscription.domain.BenefitDisplayMode.INCLUDED_QUOTA,
+                com.electrahub.subscription.domain.QuotaUnit.SESSION,
+                new BigDecimal("1"), BigDecimal.ZERO, 30, null, countryCode, 1, false, "test", true, createdAt
         );
         return new SubscriptionAllocation(
                 UUID.randomUUID(), plan, AllocationType.USER, userId, null, null,
