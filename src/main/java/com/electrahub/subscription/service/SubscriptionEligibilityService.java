@@ -37,12 +37,14 @@ public class SubscriptionEligibilityService {
 
     public SubscriptionEligibilityService(SubscriptionAllocationRepository repository,
                                           ObjectProvider<StringRedisTemplate> redisProvider,
-                                          ObjectMapper objectMapper,
+                                          ObjectProvider<ObjectMapper> objectMapperProvider,
                                           @Value("${app.eligibility-cache.ttl:30s}") Duration ttl,
                                           @Value("${app.eligibility-cache.jitter:3s}") Duration jitter) {
         this.repository = repository;
         this.redis = redisProvider.getIfAvailable();
-        this.objectMapper = objectMapper;
+        this.objectMapper = objectMapperProvider.getIfAvailable(
+                () -> new ObjectMapper().findAndRegisterModules()
+        );
         this.ttl = ttl;
         this.jitter = jitter;
     }

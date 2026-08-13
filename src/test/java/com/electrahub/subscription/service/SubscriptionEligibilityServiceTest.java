@@ -51,9 +51,11 @@ class SubscriptionEligibilityServiceTest {
         when(redis.hasKey(anyString())).thenReturn(false);
         ObjectProvider<StringRedisTemplate> provider = mock(ObjectProvider.class);
         when(provider.getIfAvailable()).thenReturn(redis);
+        ObjectProvider<ObjectMapper> mapperProvider = mock(ObjectProvider.class);
+        when(mapperProvider.getIfAvailable(any())).thenReturn(new ObjectMapper().findAndRegisterModules());
 
         SubscriptionEligibilityService service = new SubscriptionEligibilityService(
-                repository, provider, new ObjectMapper().findAndRegisterModules(), Duration.ofSeconds(30), Duration.ZERO
+                repository, provider, mapperProvider, Duration.ofSeconds(30), Duration.ZERO
         );
 
         var result = service.findEligible(
@@ -80,9 +82,11 @@ class SubscriptionEligibilityServiceTest {
         when(redis.hasKey(anyString())).thenReturn(true);
         ObjectProvider<StringRedisTemplate> provider = mock(ObjectProvider.class);
         when(provider.getIfAvailable()).thenReturn(redis);
+        ObjectProvider<ObjectMapper> mapperProvider = mock(ObjectProvider.class);
+        when(mapperProvider.getIfAvailable(any())).thenReturn(new ObjectMapper().findAndRegisterModules());
 
         SubscriptionEligibilityService service = new SubscriptionEligibilityService(
-                repository, provider, new ObjectMapper().findAndRegisterModules(), Duration.ofSeconds(30), Duration.ZERO
+                repository, provider, mapperProvider, Duration.ofSeconds(30), Duration.ZERO
         );
         assertThat(service.findEligible(userId, "charger", null, null, null, null, false)).isEmpty();
 
