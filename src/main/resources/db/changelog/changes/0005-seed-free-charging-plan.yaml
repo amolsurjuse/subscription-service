@@ -1,0 +1,94 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0005-seed-free-charging-plan
+      author: codex
+      comment: Add an admin-only all-fees free-charging plan that can be allocated to individual users with a grant-specific kWh quota.
+      changes:
+        - sql:
+            sql: |
+              INSERT INTO subscription_mgmt.subscription_plans (
+                  id,
+                  code,
+                  name,
+                  description,
+                  currency_code,
+                  total_fee_discount_type,
+                  total_fee_discount_value,
+                  session_fee_discount_type,
+                  session_fee_discount_value,
+                  default_quota_limit,
+                  active,
+                  created_at,
+                  updated_at,
+                  visibility,
+                  plan_category,
+                  pricing_model,
+                  benefit_display_mode,
+                  quota_unit,
+                  default_quota_value,
+                  subscription_price_amount,
+                  validity_days,
+                  country_code,
+                  public_sort_order,
+                  allow_stacking,
+                  created_by
+              )
+              VALUES (
+                  '7e3e15e8-3c0d-4b31-9bd6-2d2d2f3a5002',
+                  'FREE_CHARGING_USER_GRANT',
+                  'Free Charging - All Fees',
+                  'Admin-granted free charging with a per-user kWh allowance. Covers energy, time, session, and idle fees; taxes are excluded.',
+                  'USD',
+                  'ALL_FEES_PERCENTAGE',
+                  100.0000,
+                  'NONE',
+                  0.0000,
+                  NULL,
+                  TRUE,
+                  NOW(),
+                  NOW(),
+                  'ADMIN_ONLY',
+                  'DRIVER_PUBLIC',
+                  'FREE',
+                  'INCLUDED_QUOTA',
+                  'KWH',
+                  NULL,
+                  0.0000,
+                  NULL,
+                  'US',
+                  20,
+                  FALSE,
+                  'system'
+              )
+              ON CONFLICT (code) DO UPDATE
+              SET name = EXCLUDED.name,
+                  description = EXCLUDED.description,
+                  currency_code = EXCLUDED.currency_code,
+                  total_fee_discount_type = EXCLUDED.total_fee_discount_type,
+                  total_fee_discount_value = EXCLUDED.total_fee_discount_value,
+                  session_fee_discount_type = EXCLUDED.session_fee_discount_type,
+                  session_fee_discount_value = EXCLUDED.session_fee_discount_value,
+                  default_quota_limit = EXCLUDED.default_quota_limit,
+                  visibility = EXCLUDED.visibility,
+                  plan_category = EXCLUDED.plan_category,
+                  pricing_model = EXCLUDED.pricing_model,
+                  benefit_display_mode = EXCLUDED.benefit_display_mode,
+                  quota_unit = EXCLUDED.quota_unit,
+                  default_quota_value = EXCLUDED.default_quota_value,
+                  subscription_price_amount = EXCLUDED.subscription_price_amount,
+                  validity_days = EXCLUDED.validity_days,
+                  country_code = EXCLUDED.country_code,
+                  public_sort_order = EXCLUDED.public_sort_order,
+                  allow_stacking = EXCLUDED.allow_stacking,
+                  active = TRUE,
+                  updated_at = NOW();
+      rollback:
+        - sql:
+            sql: |
+              DELETE FROM subscription_mgmt.subscription_plans
+               WHERE code = 'FREE_CHARGING_USER_GRANT'
+                 AND NOT EXISTS (
+                     SELECT 1
+                       FROM subscription_mgmt.subscription_allocations
+                      WHERE plan_id = subscription_mgmt.subscription_plans.id
+                 );

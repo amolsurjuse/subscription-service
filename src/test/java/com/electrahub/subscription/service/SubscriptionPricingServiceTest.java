@@ -162,6 +162,44 @@ class SubscriptionPricingServiceTest {
         assertThat(response.coveredEnergyKwh()).isEqualByComparingTo("1.0800");
     }
 
+    @Test
+    void allFeesPercentageCoversEnergyTimeSessionAndIdleButExcludesTaxes() {
+        OffsetDateTime now = OffsetDateTime.now();
+        SubscriptionPlan plan = new SubscriptionPlan(
+                UUID.randomUUID(), "FREE_CHARGING_USER_GRANT", "Free Charging - All Fees",
+                "100% off all non-tax charging fees", "USD",
+                DiscountType.ALL_FEES_PERCENTAGE, new BigDecimal("100"),
+                DiscountType.NONE, BigDecimal.ZERO, 100,
+                com.electrahub.subscription.domain.PlanVisibility.ADMIN_ONLY,
+                com.electrahub.subscription.domain.PlanCategory.DRIVER_PUBLIC,
+                com.electrahub.subscription.domain.PricingModel.FREE,
+                com.electrahub.subscription.domain.BenefitDisplayMode.INCLUDED_QUOTA,
+                com.electrahub.subscription.domain.QuotaUnit.KWH,
+                new BigDecimal("100"), BigDecimal.ZERO, null, null, "US", 20, false, "test", true, now
+        );
+        SubscriptionAllocation allocation = new SubscriptionAllocation(
+                UUID.randomUUID(), plan, AllocationType.USER, UUID.randomUUID(), null, null, 100,
+                new BigDecimal("100"), now.minusMinutes(1), null, AllocationStatus.ACTIVE, "admin",
+                com.electrahub.subscription.domain.AllocationSource.ADMIN_GRANTED,
+                "Admin grant", "Customer care credit", null, null, null, now
+        );
+        allocationStore.allocations = List.of(allocation);
+
+        SubscriptionUtilizationPreviewResponse response = subscriptionPricingService.preview(
+                new PreviewSubscriptionUtilizationRequest(
+                        allocation.getId(), allocation.getUserId(), null, null, "free-session",
+                        new BigDecimal("12.00"), new BigDecimal("1.50"), new BigDecimal("2.00"),
+                        new BigDecimal("0.75"), 10, new BigDecimal("10"), new BigDecimal("10")
+                )
+        );
+
+        assertThat(response.eligibleSubtotal()).isEqualByComparingTo("15.5000");
+        assertThat(response.totalFeeDiscountAmount()).isEqualByComparingTo("15.5000");
+        assertThat(response.finalChargeExcludingTax()).isZero();
+        assertThat(response.finalChargeIncludingTax()).isEqualByComparingTo("0.7500");
+        assertThat(response.remainingQuotaValueAfterUse()).isEqualByComparingTo("90.0000");
+    }
+
     /**
      * Executes record consumes quota and persists utilization for `SubscriptionPricingServiceTest`.
      *

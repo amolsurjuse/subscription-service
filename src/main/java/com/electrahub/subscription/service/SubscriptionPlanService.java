@@ -290,7 +290,8 @@ public class SubscriptionPlanService {
         if (discountType == DiscountType.NONE && normalizedValue.compareTo(BigDecimal.ZERO) != 0) {
             throw new IllegalArgumentException(label + " discount value must be zero when type is NONE");
         }
-        if (discountType == DiscountType.PERCENTAGE && normalizedValue.compareTo(BigDecimal.valueOf(100)) > 0) {
+        if ((discountType == DiscountType.PERCENTAGE || discountType == DiscountType.ALL_FEES_PERCENTAGE)
+                && normalizedValue.compareTo(BigDecimal.valueOf(100)) > 0) {
             throw new IllegalArgumentException(label + " percentage discount cannot exceed 100");
         }
     }

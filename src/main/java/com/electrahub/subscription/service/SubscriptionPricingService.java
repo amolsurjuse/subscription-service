@@ -419,7 +419,8 @@ public class SubscriptionPricingService {
 
         BigDecimal grossSubtotal = money(normalizedChargingCost.add(normalizedSessionFee).add(normalizedIdleFee));
         boolean energyScopedBenefit = plan.getQuotaUnit() == QuotaUnit.KWH;
-        BigDecimal eligibleSubtotal = energyScopedBenefit ? normalizedChargingCost : grossSubtotal;
+        boolean allFeesBenefit = plan.getTotalFeeDiscountType() == DiscountType.ALL_FEES_PERCENTAGE;
+        BigDecimal eligibleSubtotal = energyScopedBenefit && !allFeesBenefit ? normalizedChargingCost : grossSubtotal;
         BigDecimal totalFeeDiscountAmount = discountAmount(
                 plan.getTotalFeeDiscountType(),
                 plan.getTotalFeeDiscountValue(),
@@ -469,6 +470,7 @@ public class SubscriptionPricingService {
         return switch (discountType) {
             case NONE -> BigDecimal.ZERO.setScale(4, RoundingMode.HALF_UP);
             case PERCENTAGE -> money(normalizedBaseAmount.multiply(normalizedDiscountValue).divide(ONE_HUNDRED, 4, RoundingMode.HALF_UP));
+            case ALL_FEES_PERCENTAGE -> money(normalizedBaseAmount.multiply(normalizedDiscountValue).divide(ONE_HUNDRED, 4, RoundingMode.HALF_UP));
             case FIXED_AMOUNT -> normalizedDiscountValue.min(normalizedBaseAmount);
         };
     }

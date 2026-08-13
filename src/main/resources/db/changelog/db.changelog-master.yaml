@@ -9,3 +9,5 @@ databaseChangeLog:
       file: db/changelog/changes/0003-seed-new-user-promo-plan.yaml
   - include:
       file: db/changelog/changes/0004-reset-new-user-promo-quota.yaml
+  - include:
+      file: db/changelog/changes/0005-seed-free-charging-plan.yaml
