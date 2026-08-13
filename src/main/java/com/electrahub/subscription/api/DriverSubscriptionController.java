@@ -77,8 +77,8 @@ public class DriverSubscriptionController {
 
     @GetMapping("/plans")
     public List<DriverSubscriptionPlanResponse> plans(
-            @RequestParam(defaultValue = "US") String countryCode,
-            @RequestParam(defaultValue = "USD") String currency,
+            @RequestParam(required = false) String countryCode,
+            @RequestParam(required = false) String currency,
             @RequestParam(defaultValue = "20") int limit,
             @RequestParam(defaultValue = "0") int offset,
             HttpServletRequest request

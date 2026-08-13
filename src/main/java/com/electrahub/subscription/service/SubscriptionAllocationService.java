@@ -256,14 +256,17 @@ public class SubscriptionAllocationService {
                                                                     int limit,
                                                                     int offset) {
         ensureNewUserPromotion(userId);
-        String driverCountry = userCountryClient.requireCountry(userId);
+        var driverCountry = userCountryClient.findCountry(userId);
+        if (driverCountry.isEmpty()) {
+            return List.of();
+        }
         int safeLimit = Math.max(1, Math.min(limit, 100));
         int safeOffset = Math.max(0, offset);
         OffsetDateTime now = OffsetDateTime.now();
 
         return subscriptionAllocationRepository.findAllWithPlan().stream()
                 .filter(allocation -> userId.equals(allocation.getUserId()))
-                .filter(allocation -> UserCountryClient.matchesPlanCountry(allocation.getPlan().getCountryCode(), driverCountry))
+                .filter(allocation -> UserCountryClient.matchesPlanCountry(allocation.getPlan().getCountryCode(), driverCountry.get()))
                 .filter(allocation -> !activeOnly || allocation.isActiveAt(now))
                 .sorted(Comparator.comparing(SubscriptionAllocation::getCreatedAt).reversed())
                 .skip(safeOffset)
@@ -278,12 +281,15 @@ public class SubscriptionAllocationService {
                                                                 String currency,
                                                                 int limit,
                                                                 int offset) {
-        String driverCountry = userCountryClient.requireCountry(userId);
-        String normalizedCountry = UserCountryClient.normalizeCountry(countryCode);
-        if (normalizedCountry != null && !normalizedCountry.equals(driverCountry)) {
+        var driverCountry = userCountryClient.findCountry(userId);
+        if (driverCountry.isEmpty()) {
             return List.of();
         }
-        normalizedCountry = driverCountry;
+        String normalizedCountry = UserCountryClient.normalizeCountry(countryCode);
+        if (normalizedCountry != null && !normalizedCountry.equals(driverCountry.get())) {
+            return List.of();
+        }
+        normalizedCountry = driverCountry.get();
         String normalizedCurrency = normalizeOptionalText(currency);
         return subscriptionPlanService.list(
                         Math.max(1, Math.min(limit, 100)),

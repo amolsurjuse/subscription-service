@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 
 @Component
@@ -23,6 +24,11 @@ public class UserCountryClient {
     }
 
     public String requireCountry(UUID userId) {
+        return findCountry(userId)
+                .orElseThrow(() -> new IllegalStateException("User country could not be verified."));
+    }
+
+    public Optional<String> findCountry(UUID userId) {
         try {
             BillingProfile response = restClient.get()
                     .uri("/api/internal/users/{userId}/billing-profile", userId)
@@ -30,12 +36,13 @@ public class UserCountryClient {
                     .body(BillingProfile.class);
             String country = normalizeCountry(response == null ? null : response.countryCode());
             if (country == null) {
-                throw new IllegalStateException("User profile does not have a country.");
+                LOGGER.warn("Subscription user {} does not have a country in their billing profile", userId);
+                return Optional.empty();
             }
-            return country;
+            return Optional.of(country);
         } catch (RuntimeException error) {
             LOGGER.warn("Unable to resolve country for subscription user {}", userId, error);
-            throw new IllegalStateException("User country could not be verified.", error);
+            return Optional.empty();
         }
     }
 
