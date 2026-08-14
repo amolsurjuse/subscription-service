@@ -3,6 +3,7 @@ package com.electrahub.subscription.service;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -18,6 +19,7 @@ public class UserCountryClient {
     private final RestClient userClient;
     private final RestClient paymentClient;
 
+    @Autowired
     public UserCountryClient(
             @Value("${app.services.user.url:http://user-service:8082}") String userServiceUrl,
             @Value("${app.services.payment.url:http://payment-service:8083}") String paymentServiceUrl
