@@ -73,8 +73,7 @@ public class UserCountryClient {
     private String findWalletCountry(UUID userId) {
         try {
             WalletProfile response = paymentClient.get()
-                    .uri("/api/v1/payment/wallet")
-                    .header("X-Account-Id", userId.toString())
+                    .uri("/api/v1/payment/internal/accounts/{userId}/wallet-profile", userId)
                     .retrieve()
                     .body(WalletProfile.class);
             return normalizeCountry(response == null ? null : response.countryCode());

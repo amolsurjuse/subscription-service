@@ -8,7 +8,6 @@ import org.springframework.web.client.RestClient;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
@@ -42,8 +41,7 @@ class UserCountryClientTest {
 
         userServer.expect(requestTo("http://user-service/api/internal/users/" + USER_ID + "/billing-profile"))
                 .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
-        paymentServer.expect(requestTo("http://payment-service/api/v1/payment/wallet"))
-                .andExpect(header("X-Account-Id", USER_ID.toString()))
+        paymentServer.expect(requestTo("http://payment-service/api/v1/payment/internal/accounts/" + USER_ID + "/wallet-profile"))
                 .andRespond(withSuccess("{\"countryCode\":\"us\",\"currency\":\"USD\"}", MediaType.APPLICATION_JSON));
 
         assertThat(client.findCountry(USER_ID)).contains("US");
@@ -61,7 +59,7 @@ class UserCountryClientTest {
 
         userServer.expect(requestTo("http://user-service/api/internal/users/" + USER_ID + "/billing-profile"))
                 .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
-        paymentServer.expect(requestTo("http://payment-service/api/v1/payment/wallet"))
+        paymentServer.expect(requestTo("http://payment-service/api/v1/payment/internal/accounts/" + USER_ID + "/wallet-profile"))
                 .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
 
         assertThat(client.findCountry(USER_ID)).isEmpty();
